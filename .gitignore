@@ -1,0 +1,26 @@
+# --- .NET ---
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+
+# --- Angular / Node ---
+node_modules/
+dist/
+.angular/
+
+# --- Local storage fallback (FRS §13 local dev uploads) ---
+backend/src/ClaimsModule.API/uploads/
+
+# --- Editors / OS ---
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Env / secrets ---
+*.env
+appsettings.*.local.json
+
+# --- Docs source (original DOCX specs, not tracked) ---
+docs/source/

@@ -1,0 +1,81 @@
+using ClaimsModule.API.Auth;
+using Hangfire;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.OpenApi.Models;
+
+namespace ClaimsModule.API;
+
+public static class DependencyInjection
+{
+    public const string AngularDevCorsPolicy = "AngularDev";
+
+    public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        services
+            .AddAuthentication(MockAuthenticationHandler.SchemeName)
+            .AddScheme<AuthenticationSchemeOptions, MockAuthenticationHandler>(MockAuthenticationHandler.SchemeName, _ => { });
+        services.AddAuthorization();
+
+        services.AddControllers();
+
+        services.AddEndpointsApiExplorer();
+        services.AddApiSwaggerGen();
+
+        services.AddCors(options =>
+        {
+            options.AddPolicy(AngularDevCorsPolicy, policy =>
+                policy.WithOrigins("http://localhost:4200")
+                      .AllowAnyHeader()
+                      .AllowAnyMethod());
+        });
+
+        services.AddHangfireIfConfigured(configuration);
+
+        return services;
+    }
+
+    private static IServiceCollection AddApiSwaggerGen(this IServiceCollection services)
+    {
+        services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo { Title = "Claims Module API", Version = "v1" });
+
+            var bearerScheme = new OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Type = SecuritySchemeType.Http,
+                Scheme = "Bearer",
+                BearerFormat = "mock",
+                In = ParameterLocation.Header,
+                Description = "Mock bearer token: base64-encoded JSON { \"userId\": \"...\", \"role\": \"handler|supervisor|manager\" }.",
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            };
+            options.AddSecurityDefinition("Bearer", bearerScheme);
+            options.AddSecurityRequirement(new OpenApiSecurityRequirement { { bearerScheme, [] } });
+        });
+
+        return services;
+    }
+
+    private static IServiceCollection AddHangfireIfConfigured(this IServiceCollection services, IConfiguration configuration)
+    {
+        if (!configuration.IsHangfireConfigured())
+        {
+            return services;
+        }
+
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+
+        services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseSqlServerStorage(connectionString));
+        services.AddHangfireServer();
+
+        return services;
+    }
+
+    public static bool IsHangfireConfigured(this IConfiguration configuration)
+        => !string.IsNullOrWhiteSpace(configuration.GetConnectionString("DefaultConnection"));
+}
