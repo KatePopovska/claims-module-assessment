@@ -1,0 +1,52 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <PropertyGroup Label="SharedVersions">
+    <EfCoreVersion>9.0.20</EfCoreVersion>
+    <HangfireVersion>1.8.25</HangfireVersion>
+    <FluentValidationVersion>12.1.1</FluentValidationVersion>
+    <MicrosoftExtensionsVersion>10.0.12</MicrosoftExtensionsVersion>
+  </PropertyGroup>
+
+  <ItemGroup Label="Entity Framework Core">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EfCoreVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="$(EfCoreVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Label="Hangfire">
+    <PackageVersion Include="Hangfire.Core" Version="$(HangfireVersion)" />
+    <PackageVersion Include="Hangfire.AspNetCore" Version="$(HangfireVersion)" />
+    <PackageVersion Include="Hangfire.SqlServer" Version="$(HangfireVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Label="FluentValidation">
+    <PackageVersion Include="FluentValidation" Version="$(FluentValidationVersion)" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="$(FluentValidationVersion)" />
+  </ItemGroup>
+
+  <!-- Pulled to 10.x by transitive floors (MediatR 14.2 -> DI.Abstractions >= 10.0.0;
+       Azure.Storage.Blobs -> Azure.Core -> Configuration.Abstractions >= 10.0.3).
+       These abstraction packages are TFM-agnostic; net9.0 app + net10.0 abstractions is supported. -->
+  <ItemGroup Label="Microsoft.Extensions">
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Label="CQRS / Mapping">
+    <PackageVersion Include="MediatR" Version="14.2.0" />
+    <PackageVersion Include="AutoMapper" Version="16.2.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Azure">
+    <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.2" />
+  </ItemGroup>
+
+  <ItemGroup Label="API / Swagger">
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
+
+</Project>
