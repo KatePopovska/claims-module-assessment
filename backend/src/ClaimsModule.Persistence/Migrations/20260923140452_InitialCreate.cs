@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace ClaimsModule.Persistence.Migrations
 {
     /// <inheritdoc />
@@ -11,6 +13,9 @@ namespace ClaimsModule.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateSequence<int>(
+                name: "ClaimNumberSequence");
+
             migrationBuilder.CreateTable(
                 name: "CauseOfLossCodes",
                 columns: table => new
@@ -332,6 +337,35 @@ namespace ClaimsModule.Persistence.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.InsertData(
+                table: "CauseOfLossCodes",
+                columns: new[] { "Id", "Code", "CreatedAt", "DeletedAt", "IsActive", "Name", "OrganisationId", "PerilCategory", "SortOrder", "UpdatedAt", "UserCreated", "UserModified" },
+                values: new object[,]
+                {
+                    { new Guid("10000000-0000-0000-0000-000000000001"), "COL-FIRE", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Fire", new Guid("00000000-0000-0000-0000-000000000001"), "Property", 1, null, null, null },
+                    { new Guid("10000000-0000-0000-0000-000000000002"), "COL-FLOOD", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Flood", new Guid("00000000-0000-0000-0000-000000000001"), "Weather", 2, null, null, null },
+                    { new Guid("10000000-0000-0000-0000-000000000003"), "COL-THEFT", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Theft", new Guid("00000000-0000-0000-0000-000000000001"), "Crime", 3, null, null, null },
+                    { new Guid("10000000-0000-0000-0000-000000000004"), "COL-VEH-COL", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Vehicle Collision", new Guid("00000000-0000-0000-0000-000000000001"), "Auto", 4, null, null, null },
+                    { new Guid("10000000-0000-0000-0000-000000000005"), "COL-VEH-COMP", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Vehicle Comprehensive", new Guid("00000000-0000-0000-0000-000000000001"), "Auto", 5, null, null, null },
+                    { new Guid("10000000-0000-0000-0000-000000000006"), "COL-LIAB", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Third Party Liability", new Guid("00000000-0000-0000-0000-000000000001"), "Liability", 6, null, null, null },
+                    { new Guid("10000000-0000-0000-0000-000000000007"), "COL-EQUIP", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Equipment Breakdown", new Guid("00000000-0000-0000-0000-000000000001"), "Equipment", 7, null, null, null },
+                    { new Guid("10000000-0000-0000-0000-000000000008"), "COL-WIND", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Wind / Storm", new Guid("00000000-0000-0000-0000-000000000001"), "Weather", 8, null, null, null },
+                    { new Guid("10000000-0000-0000-0000-000000000009"), "COL-INJURY", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Bodily Injury", new Guid("00000000-0000-0000-0000-000000000001"), "Liability", 9, null, null, null },
+                    { new Guid("10000000-0000-0000-0000-000000000010"), "COL-OTHER", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Other / Unknown", new Guid("00000000-0000-0000-0000-000000000001"), "General", 10, null, null, null }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Policies",
+                columns: new[] { "Id", "ClientName", "CoverageTypes", "CreatedAt", "DeletedAt", "EffectiveDate", "ExpirationDate", "OrganisationId", "PolicyNumber", "Status", "UpdatedAt", "UserCreated", "UserModified" },
+                values: new object[,]
+                {
+                    { new Guid("20000000-0000-0000-0000-000000000001"), "Meridian Transport LLC", "Vehicle, Cargo", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new DateTimeOffset(new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new Guid("00000000-0000-0000-0000-000000000001"), "POL-2024-001001", "Active", null, null, null },
+                    { new Guid("20000000-0000-0000-0000-000000000002"), "Harborview Properties Inc", "Property, Liability", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, new DateTimeOffset(new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new DateTimeOffset(new DateTime(2026, 5, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new Guid("00000000-0000-0000-0000-000000000001"), "POL-2024-001002", "Expired", null, null, null },
+                    { new Guid("20000000-0000-0000-0000-000000000003"), "Coastal Builders Group", "Property, Equipment", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, new DateTimeOffset(new DateTime(2025, 3, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new DateTimeOffset(new DateTime(2027, 2, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new Guid("00000000-0000-0000-0000-000000000001"), "POL-2025-002001", "Active", null, null, null },
+                    { new Guid("20000000-0000-0000-0000-000000000004"), "Stanton Medical Group", "Liability, Vehicle", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, new DateTimeOffset(new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new DateTimeOffset(new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new Guid("00000000-0000-0000-0000-000000000001"), "POL-2025-002002", "Active", null, null, null },
+                    { new Guid("20000000-0000-0000-0000-000000000005"), "Archived Corp", "Property", new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, new DateTimeOffset(new DateTime(2020, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new DateTimeOffset(new DateTime(2021, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), new Guid("00000000-0000-0000-0000-000000000001"), "POL-2023-000099", "Expired", null, null, null }
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_ClaimAuditLog_ClaimId",
                 table: "ClaimAuditLog",
@@ -381,9 +415,9 @@ namespace ClaimsModule.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Policies_OrganisationId_PolicyNumber",
+                name: "IX_Policies_PolicyNumber",
                 table: "Policies",
-                columns: new[] { "OrganisationId", "PolicyNumber" },
+                column: "PolicyNumber",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -436,6 +470,9 @@ namespace ClaimsModule.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "Policies");
+
+            migrationBuilder.DropSequence(
+                name: "ClaimNumberSequence");
         }
     }
 }

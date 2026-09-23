@@ -28,6 +28,7 @@ public class ClaimsDbContext(
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasSequence<int>(ClaimNumberGenerator.SequenceName).StartsAt(1).IncrementsBy(1);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ClaimsDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }

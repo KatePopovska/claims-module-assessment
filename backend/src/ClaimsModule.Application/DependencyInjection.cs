@@ -1,5 +1,7 @@
 using System.Reflection;
 using ClaimsModule.Application.Common.Behaviours;
+using ClaimsModule.Application.Common.Interfaces;
+using ClaimsModule.Application.Common.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +23,8 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
 
         services.AddAutoMapper(cfg => { }, assembly);
+
+        services.AddScoped<IAuditLogService, AuditLogService>();
 
         return services;
     }

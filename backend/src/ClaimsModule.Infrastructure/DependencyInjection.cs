@@ -12,6 +12,7 @@ public static class DependencyInjection
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<ICorrelationIdProvider, CorrelationIdProvider>();
 
         var provider = configuration["Storage:Provider"] ?? "LocalFileSystem";
         if (provider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))

@@ -69,9 +69,19 @@ Two domain-model corrections caught during a design review of the entities again
 
 `InitialCreate` was regenerated from scratch after both fixes (confirmed via `sqlcmd` that it had never been applied to any local database, so no second migration was needed on top).
 
+Also removed the speculative `IClaimRepository`/`IPolicyRepository`/`ICauseOfLossCodeRepository` added earlier the same day — none had a real caller yet (no commands exist), every method was a guess at a future shape. Kept `IUnitOfWork` since it's already at its minimal, non-speculative shape (one method, directly required by the brief's "Unit of Work" line). Repositories will be rebuilt with exactly the methods each command needs, in the same change as that command.
+
+## 2026-09-23 (cont'd) — Seed Data, Claim Number Sequence, Audit Log Service
+
+Closed out the three foundational pieces every later command depends on:
+- **Seed data**: 5 policies (FRS §5.5) and 10 cause-of-loss codes (FRS §5.6) via EF Core `HasData` on `PolicyConfiguration`/`CauseOfLossCodeConfiguration` (FRS §15.4 requires migration-time seeding, not startup code). Also caught and fixed the same org-scoping mistake on `Policies.PolicyNumber`'s unique index that was just fixed for `CauseOfLossCodes.Code` — FRS §9.10 states it as plainly "unique," not "unique per organisation" (unlike `ClaimNumber`, which BR-C-04 explicitly scopes per org).
+- **Claim number generator**: a SQL Server `SEQUENCE` (`ClaimNumberSequence`, registered via `modelBuilder.HasSequence<int>`) behind `IClaimNumberGenerator`/`ClaimNumberGenerator`, per FRS §5.3's specified technique. Verified against the real database via `sqlcmd`.
+- **`IAuditLogService`**: the one permitted writer to `ClaimAuditLog` (BR-A-01 — no handler writes to that table directly). Stages the entry via `IApplicationDbContext` but does not call `SaveChangesAsync` itself, so it always commits atomically with the business change it describes, via the caller's later `IUnitOfWork.SaveChangesAsync()`. Needed a new `ICorrelationIdProvider` (Application interface, `HttpContext.TraceIdentifier`-backed implementation in Infrastructure) to satisfy FRS §14.2's correlation-ID propagation.
+
+`InitialCreate` regenerated again to include the sequence and seed `INSERT`s, and applied to LocalDB (`dotnet ef database update`) — verified via `sqlcmd` that all 10 cause-of-loss codes, all 5 policies (with correctly computed `Active`/`Expired` status based on today's date, not hardcoded), and the sequence all work end-to-end.
+
 ## Next Steps (Not Started)
 
-- Turn `docs/domain-model.md` into actual Domain entities + `IEntityTypeConfiguration<T>` classes in Persistence (RowVer, soft-delete filter, DECIMAL(19,4), NEWSEQUENTIALID(), the full FRS §15 convention set)
-- First EF Core migration + seed data (5 policies, 10 cause-of-loss codes, one fixed OrganisationId)
-- First vertical slice: `CreateClaimCommand` end-to-end (atomic claim-number sequence per FRS §5.3, transactional child-record creation, audit log write)
+- First vertical slice: `CreateClaimCommand` end-to-end (transactional child-record creation — `LossEvent`, `ClaimParty`, `ClaimRiskObject` — plus the `CLAIM_CREATED` audit entry via `IAuditLogService`)
+- `POST /api/claims` controller endpoint + AutoMapper response DTO
 - Remaining open questions in `docs/requirements.md` §9 (15 of 19 still open) don't block this — they can be resolved as the relevant feature is built, not all up front

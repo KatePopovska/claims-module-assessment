@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ClaimsModule.Persistence.Migrations
 {
     [DbContext(typeof(ClaimsDbContext))]
-    [Migration("20260923115937_InitialCreate")]
+    [Migration("20260923140452_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -24,6 +24,8 @@ namespace ClaimsModule.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.HasSequence<int>("ClaimNumberSequence");
 
             modelBuilder.Entity("ClaimsModule.Domain.Audit.ClaimAuditLog", b =>
                 {
@@ -543,6 +545,128 @@ namespace ClaimsModule.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("CauseOfLossCodes", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000001"),
+                            Code = "COL-FIRE",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Fire",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "Property",
+                            SortOrder = 1
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000002"),
+                            Code = "COL-FLOOD",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Flood",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "Weather",
+                            SortOrder = 2
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000003"),
+                            Code = "COL-THEFT",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Theft",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "Crime",
+                            SortOrder = 3
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000004"),
+                            Code = "COL-VEH-COL",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Vehicle Collision",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "Auto",
+                            SortOrder = 4
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000005"),
+                            Code = "COL-VEH-COMP",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Vehicle Comprehensive",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "Auto",
+                            SortOrder = 5
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000006"),
+                            Code = "COL-LIAB",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Third Party Liability",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "Liability",
+                            SortOrder = 6
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000007"),
+                            Code = "COL-EQUIP",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Equipment Breakdown",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "Equipment",
+                            SortOrder = 7
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000008"),
+                            Code = "COL-WIND",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Wind / Storm",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "Weather",
+                            SortOrder = 8
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000009"),
+                            Code = "COL-INJURY",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Bodily Injury",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "Liability",
+                            SortOrder = 9
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000010"),
+                            Code = "COL-OTHER",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            IsDeleted = false,
+                            Name = "Other / Unknown",
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PerilCategory = "General",
+                            SortOrder = 10
+                        });
                 });
 
             modelBuilder.Entity("ClaimsModule.Domain.Reference.Policy", b =>
@@ -608,10 +732,77 @@ namespace ClaimsModule.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrganisationId", "PolicyNumber")
+                    b.HasIndex("PolicyNumber")
                         .IsUnique();
 
                     b.ToTable("Policies", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000001"),
+                            ClientName = "Meridian Transport LLC",
+                            CoverageTypes = "Vehicle, Cargo",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            EffectiveDate = new DateTimeOffset(new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            ExpirationDate = new DateTimeOffset(new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsDeleted = false,
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PolicyNumber = "POL-2024-001001",
+                            Status = "Active"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000002"),
+                            ClientName = "Harborview Properties Inc",
+                            CoverageTypes = "Property, Liability",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            EffectiveDate = new DateTimeOffset(new DateTime(2024, 6, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            ExpirationDate = new DateTimeOffset(new DateTime(2026, 5, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsDeleted = false,
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PolicyNumber = "POL-2024-001002",
+                            Status = "Expired"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000003"),
+                            ClientName = "Coastal Builders Group",
+                            CoverageTypes = "Property, Equipment",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            EffectiveDate = new DateTimeOffset(new DateTime(2025, 3, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            ExpirationDate = new DateTimeOffset(new DateTime(2027, 2, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsDeleted = false,
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PolicyNumber = "POL-2025-002001",
+                            Status = "Active"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000004"),
+                            ClientName = "Stanton Medical Group",
+                            CoverageTypes = "Liability, Vehicle",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            EffectiveDate = new DateTimeOffset(new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            ExpirationDate = new DateTimeOffset(new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsDeleted = false,
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PolicyNumber = "POL-2025-002002",
+                            Status = "Active"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000005"),
+                            ClientName = "Archived Corp",
+                            CoverageTypes = "Property",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            EffectiveDate = new DateTimeOffset(new DateTime(2020, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            ExpirationDate = new DateTimeOffset(new DateTime(2021, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsDeleted = false,
+                            OrganisationId = new Guid("00000000-0000-0000-0000-000000000001"),
+                            PolicyNumber = "POL-2023-000099",
+                            Status = "Expired"
+                        });
                 });
 
             modelBuilder.Entity("ClaimsModule.Domain.Reserves.ClaimReserveComponent", b =>

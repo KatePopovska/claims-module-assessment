@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ClaimsDbContext>());
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IClaimNumberGenerator, ClaimNumberGenerator>();
 
         services.TryAddSingleton(TimeProvider.System);
 
