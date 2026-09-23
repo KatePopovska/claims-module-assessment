@@ -51,17 +51,19 @@ Format follows a lightweight ADR (Architecture/business rule Decision Record) st
 
 | Column | Type | Notes |
 |---|---|---|
-| `OverrideFlag` | `BIT NOT NULL DEFAULT 0` | true once a Manager has authorized exceeding the $10M aggregate limit |
-| `OverrideByUserId` | `UNIQUEIDENTIFIER NULL` | Manager who set it |
-| `OverrideAt` | `DATETIMEOFFSET(7) NULL` | when it was set |
-| `OverrideReason` | `NVARCHAR(500) NULL` | justification |
+| `ReserveLimitOverride` | `BIT NOT NULL DEFAULT 0` | true once a Manager has authorized exceeding the $10M aggregate limit |
+| `ReserveLimitOverrideByUserId` | `UNIQUEIDENTIFIER NULL` | Manager who set it |
+| `ReserveLimitOverrideAt` | `DATETIMEOFFSET(7) NULL` | when it was set |
+| `ReserveLimitOverrideReason` | `NVARCHAR(500) NULL` | justification |
+
+Named `ReserveLimitOverride*` rather than the generic `Override*` used in the first pass — this override is specifically for the claim-level aggregate reserve limit, and a generic name invites confusion with any other override concept that might be added later.
 
 Setting this flag is a significant business action per BR-A-02's general principle ("every significant business action... must create an audit log entry"), so it must be logged. A new `EventType` value, `RESERVE_OVERRIDE_SET`, is added to the audit event enumeration to cover it (fills the gap noted in `docs/requirements.md` §9 item 14 — the FRS's own §14.1 list never anticipated this event).
 
 **Consequences:**
 - `docs/domain-model.md` §3.1 (Claims) updated: the four columns above replace the previous "not defined in FRS schema" callout.
 - `docs/business-rules.md` §10 (audit events) gets the new `RESERVE_OVERRIDE_SET` event type.
-- A reserve transaction that would push the claim's aggregate approved total over $10M must be blocked from `Approved` status until `Claims.OverrideFlag = true`; setting the flag is itself a Manager-only action (mirrors the BR-ST-04 Reopen pattern of a role-gated side-effect on the Claim).
+- A reserve transaction that would push the claim's aggregate approved total over $10M must be blocked from `Approved` status until `Claims.ReserveLimitOverride = true`; setting the flag is itself a Manager-only action (mirrors the BR-ST-04 Reopen pattern of a role-gated side-effect on the Claim).
 
 ---
 
@@ -85,7 +87,7 @@ The separate $10,000,000 rule (BR-R-05) is an **aggregate, claim-level** limit �
 **Consequences:**
 - `docs/business-rules.md` §5's "Missing authorization rule (open question)" callout is superseded by this decision.
 - `docs/api-contract.md` §2's corresponding note is superseded by this decision.
-- The reserve-creation/adjustment command handler validates only: amount > 0 (except SubrogationRecoverable), resulting `ApprovalStatus` per the threshold table above, and — separately — the aggregate $10M check against `Claims.OverrideFlag`.
+- The reserve-creation/adjustment command handler validates only: amount > 0 (except SubrogationRecoverable), resulting `ApprovalStatus` per the threshold table above, and — separately — the aggregate $10M check against `Claims.ReserveLimitOverride`.
 
 ---
 

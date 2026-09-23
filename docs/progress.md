@@ -57,6 +57,18 @@ Known rough edges from package-version churn during scaffolding (all resolved): 
 
 No feature/business logic implemented yet (no Claim/Reserve/Policy entities, no MediatR commands or queries, no controllers beyond the health check). That's the next phase.
 
+## 2026-09-23 — Domain Entities, EF Configurations, Repositories + Unit of Work
+
+Implemented all 10 entities from `docs/domain-model.md` (`ClaimsModule.Domain`) with `IEntityTypeConfiguration<T>` classes in `ClaimsModule.Persistence` applying the full FRS §15 convention set (NEWSEQUENTIALID() GUID PKs, DECIMAL(19,4), DATETIMEOFFSET(7), soft-delete global query filter, RowVer on Claims/ClaimReserveComponents only). Generated and verified an `InitialCreate` EF Core migration. Added Central Package Management, `Directory.Build.props`, and `global.json` to the backend solution beforehand to prevent version drift across the five projects.
+
+Added an explicit repository + Unit of Work layer (`IClaimRepository`, `IPolicyRepository`, `ICauseOfLossCodeRepository`, `IUnitOfWork` in Application; implementations in Persistence) after re-checking the Assessment brief's project-structure line for `ClaimsModule.Persistence` ("EF Core DbContext, migrations, **repositories, Unit of Work**") — the initial `IApplicationDbContext`-with-`DbSet<T>` design alone didn't literally satisfy that. Repositories are scoped to what **commands** need (load-one-aggregate-to-mutate-it); reads/dashboards/reporting stay on `IApplicationDbContext` directly — repositories are not used for arbitrary querying.
+
+Two domain-model corrections caught during a design review of the entities against the FRS source:
+- `LossEvents.CauseOfLossCode` was modeled as a `Guid` FK to `CauseOfLossCodes.CauseOfLossCodeId`. FRS §9.2 explicitly specifies a string FK to `CauseOfLossCodes.Code` (NVARCHAR(50)) instead. Fixed in the entity, EF config (`CauseOfLossCodes.Code` is now an EF Core alternate key), and `docs/domain-model.md`.
+- `Claims.OverrideFlag`/`OverrideByUserId`/`OverrideAt`/`OverrideReason` (added in ADR-003 to cover a genuine FRS schema gap) renamed to `ReserveLimitOverride*` — the generic `Override*` naming didn't make clear which of possibly several future override concepts it covers. Updated across `docs/decisions.md`, `docs/domain-model.md`, `docs/business-rules.md`, `docs/requirements.md`.
+
+`InitialCreate` was regenerated from scratch after both fixes (confirmed via `sqlcmd` that it had never been applied to any local database, so no second migration was needed on top).
+
 ## Next Steps (Not Started)
 
 - Turn `docs/domain-model.md` into actual Domain entities + `IEntityTypeConfiguration<T>` classes in Persistence (RowVer, soft-delete filter, DECIMAL(19,4), NEWSEQUENTIALID(), the full FRS §15 convention set)

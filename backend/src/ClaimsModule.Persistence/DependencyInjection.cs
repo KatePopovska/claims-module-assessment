@@ -2,6 +2,7 @@ using ClaimsModule.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ClaimsModule.Persistence;
 
@@ -17,6 +18,10 @@ public static class DependencyInjection
                 sql.MigrationsAssembly(typeof(ClaimsDbContext).Assembly.FullName)));
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ClaimsDbContext>());
+
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        services.TryAddSingleton(TimeProvider.System);
 
         return services;
     }

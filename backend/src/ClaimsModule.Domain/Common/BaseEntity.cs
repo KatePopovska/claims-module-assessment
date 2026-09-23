@@ -2,7 +2,8 @@ namespace ClaimsModule.Domain.Common;
 
 public abstract class BaseEntity
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    // Not client-generated: EF Core defers to the database's sequential-GUID default.
+    public Guid Id { get; set; }
 
     private readonly List<IDomainEvent> _domainEvents = [];
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();

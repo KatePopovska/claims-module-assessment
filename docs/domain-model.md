@@ -49,14 +49,14 @@ Aggregate root: **Claim**. Everything else (`LossEvent`, `ClaimParty`, `ClaimRis
 | ClosureReason | nullable | |
 | Notes | NVARCHAR(MAX), nullable | |
 | IsDeleted / audit columns / RowVer | — | see `docs/architecture.md` conventions |
-| OverrideFlag | BIT NOT NULL DEFAULT 0 | Manager override for the $10M aggregate reserve limit — see `docs/decisions.md` ADR-003 |
-| OverrideByUserId | GUID, nullable | Manager who set the override |
-| OverrideAt | DATETIMEOFFSET(7), nullable | when the override was set |
-| OverrideReason | NVARCHAR(500), nullable | justification |
+| ReserveLimitOverride | BIT NOT NULL DEFAULT 0 | Manager override for the $10M aggregate reserve limit — see `docs/decisions.md` ADR-003 |
+| ReserveLimitOverrideByUserId | GUID, nullable | Manager who set the override |
+| ReserveLimitOverrideAt | DATETIMEOFFSET(7), nullable | when the override was set |
+| ReserveLimitOverrideReason | NVARCHAR(500), nullable | justification |
 
 ### 3.2 LossEvents
 
-LossEventId (PK), ClaimId (FK), LossDate, LossDescription (≥20 chars, required), LossLocation (free text, nullable), CauseOfLossCode (FK), EstimatedLossAmount (nullable), ReportDate, PoliceReportNumber (nullable).
+LossEventId (PK), ClaimId (FK), LossDate, LossDescription (≥20 chars, required), LossLocation (free text, nullable), CauseOfLossCode (string FK → `CauseOfLossCodes.Code`, NVARCHAR(50), NOT NULL — FRS §9.2; not a GUID FK to `CauseOfLossCodeId`), EstimatedLossAmount (nullable), ReportDate, PoliceReportNumber (nullable).
 
 ### 3.3 ClaimParties
 
@@ -94,7 +94,7 @@ Append-only, immutable — no UPDATE/DELETE ever (BR-A-01). AuditLogId (PK), Cla
 
 ### 3.9 CauseOfLossCodes (reference data)
 
-CauseOfLossCodeId (PK), Code (unique), Name, PerilCategory (`Property` / `Auto` / `Liability` / `Weather` / `Equipment` / `Crime` / `General`), IsActive, SortOrder. Seeded set defined in FRS §5.6 (10 codes).
+CauseOfLossCodeId (PK), Code (unique — this is the alternate key LossEvents.CauseOfLossCode FKs to, not CauseOfLossCodeId), Name, PerilCategory (`Property` / `Auto` / `Liability` / `Weather` / `Equipment` / `Crime` / `General`), IsActive, SortOrder. Seeded set defined in FRS §5.6 (10 codes).
 
 ### 3.10 Policies (simulated)
 
