@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using ClaimsModule.API.Auth;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication;
@@ -16,7 +17,9 @@ public static class DependencyInjection
             .AddScheme<AuthenticationSchemeOptions, MockAuthenticationHandler>(MockAuthenticationHandler.SchemeName, _ => { });
         services.AddAuthorization();
 
-        services.AddControllers();
+        services.AddControllers()
+            .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+        services.AddRouting(options => options.LowercaseUrls = true);
 
         services.AddEndpointsApiExplorer();
         services.AddApiSwaggerGen();
@@ -48,7 +51,7 @@ public static class DependencyInjection
                 BearerFormat = "mock",
                 In = ParameterLocation.Header,
                 Description = "Mock bearer token: base64-encoded JSON { \"userId\": \"...\", \"role\": \"handler|supervisor|manager\" }.",
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }                
             };
             options.AddSecurityDefinition("Bearer", bearerScheme);
             options.AddSecurityRequirement(new OpenApiSecurityRequirement { { bearerScheme, [] } });

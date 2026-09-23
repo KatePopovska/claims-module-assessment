@@ -1,3 +1,4 @@
+using ClaimsModule.Domain.Claims;
 using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Application.Common.Interfaces;
@@ -5,7 +6,7 @@ namespace ClaimsModule.Application.Common.Interfaces;
 public interface IAuditLogService
 {
     void Log(
-        Guid claimId,
+        Claim claim,
         AuditEventType eventType,
         string description,
         string? oldValue = null,

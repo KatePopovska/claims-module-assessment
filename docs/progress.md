@@ -80,8 +80,23 @@ Closed out the three foundational pieces every later command depends on:
 
 `InitialCreate` regenerated again to include the sequence and seed `INSERT`s, and applied to LocalDB (`dotnet ef database update`) — verified via `sqlcmd` that all 10 cause-of-loss codes, all 5 policies (with correctly computed `Active`/`Expired` status based on today's date, not hardcoded), and the sequence all work end-to-end.
 
+## 2026-09-23 (cont'd) — First Vertical Slice: `CreateClaimCommand`
+
+`POST /api/claims` end-to-end: `CreateClaimCommand`/`CreateClaimCommandValidator`/`CreateClaimCommandHandler` in `ClaimsModule.Application`, `ClaimsController` in the API, AutoMapper profile (`ClaimMappingProfile`) for the response DTO. Reintroduced `IClaimRepository` with exactly one method (`Add`) — the one this command actually calls — closing out the repository discussion from earlier the same day.
+
+**Scoping decision:** FluentValidation on this command enforces only the FRS's Critical-severity rules (BR-C-01 loss date not future, BR-C-07 description ≥20 chars, BR-C-05 cause-of-loss code exists+active, plus a structural check that a supplied `PolicyId` references a real policy). Warning-severity rules (BR-C-02 policy period, BR-C-06 no policy linked, no Claimant yet, no risk objects) do **not** block creation — matching `business-rules.md` §1's own description of Draft as "created but incomplete/unvalidated." No `ValidationIssue` entity exists anywhere in `domain-model.md`'s entity list despite `VALIDATION_ISSUE_ADDED` being a defined audit event — flagging this as a genuine documentation gap (not one of the original 19) rather than inventing an entity to fill it. Current read: BR-ST-02's "no unresolved Critical validation issues" is meant to be evaluated live against the claim's current data at the moment of the `Draft → Open` transition attempt, not against a persisted issue log — to be confirmed when `UpdateClaimStatusCommand` is built.
+
+**Bugs found and fixed via real end-to-end testing (not just compilation) against the actual LocalDB:**
+- `IAuditLogService.Log` took a `Guid claimId` — but `Claim.Id` is `Guid.Empty` until after `SaveChangesAsync` runs (DB-generated `NEWSEQUENTIALID()`), so the very first audit entry (`CLAIM_CREATED`) would have been written with a garbage FK. Changed the signature to take the `Claim` entity itself, so EF Core's own FK-fixup resolves the real generated Id within the same `SaveChangesAsync` call — no second round-trip needed, still atomic.
+- System.Text.Json didn't accept enum values as strings (`"Claimant"` failed to parse) — added `JsonStringEnumConverter` globally.
+- `ClaimNumberGenerator` used `Database.SqlQueryRaw<int>(...).SingleAsync(...)` — EF Core composes that as a derived table once any LINQ operator is chained on, and SQL Server rejects `NEXT VALUE FOR` inside a subquery (`Error Number:11719`). Rewrote it to run as a standalone statement over the raw ADO.NET connection EF Core already manages (`context.Database.GetDbConnection()` + `ExecuteScalarAsync`), bypassing EF's query composition for just this one call.
+- API routes were rendering as `/api/Claims` (PascalCase from the `[controller]` token) instead of FRS §15.3's mandated kebab-case — added `options.LowercaseUrls = true` globally.
+
+**Verified against the real database** (not just Swagger 200s): claim number `CLM-2026-0000001` format correct; `Claims`/`LossEvents`/`ClaimParties`/`ClaimRiskObjects`/`ClaimAuditLog` rows all correctly linked by FK; `ClaimAuditLog.CorrelationId` populated from `HttpContext.TraceIdentifier`; 422 structured error body for multi-field validation failures matches FRS §10.4 exactly; 401 for unauthenticated requests; 201 for a claim with no policy linked (correctly not blocked, per the scoping decision above).
+
 ## Next Steps (Not Started)
 
-- First vertical slice: `CreateClaimCommand` end-to-end (transactional child-record creation — `LossEvent`, `ClaimParty`, `ClaimRiskObject` — plus the `CLAIM_CREATED` audit entry via `IAuditLogService`)
-- `POST /api/claims` controller endpoint + AutoMapper response DTO
+- Status transitions: transition rule table (BR-ST-01) + `UpdateClaimStatusCommand` + closure conditions (CC-01..04) — this is also where the "live-evaluated Critical issues" question above gets resolved for real
+- `AddPartyCommand`/`RemovePartyCommand`
+- Reserve management vertical slice (authority thresholds, `POST`/`PUT` reserves, approve/reject/retract, `ReserveLimitOverride`, GL posting job)
 - Remaining open questions in `docs/requirements.md` §9 (15 of 19 still open) don't block this — they can be resolved as the relevant feature is built, not all up front
