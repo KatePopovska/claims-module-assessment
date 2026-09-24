@@ -42,4 +42,32 @@ public class Claim : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken
     public ICollection<ClaimReserveComponent> ReserveComponents { get; set; } = [];
     public ICollection<ClaimDocument> Documents { get; set; } = [];
     public ICollection<ClaimAuditLog> AuditLogEntries { get; set; } = [];
+
+    public IReadOnlyList<StatusChange> ChangeStatus(ClaimStatus targetStatus, string? reason, DateTimeOffset now)
+    {
+        if (!ClaimStatusTransitions.IsValid(Status, targetStatus))
+        {
+            throw new InvalidOperationException($"Transition from {Status} to {targetStatus} is not permitted.");
+        }
+
+        var changes = new List<StatusChange> { new(Status, targetStatus, IsAutomatic: false) };
+        Status = targetStatus;
+
+        switch (targetStatus)
+        {
+            case ClaimStatus.Closed:
+                ClosedAt = now;
+                ClosureReason = reason;
+                break;
+
+            case ClaimStatus.Reopened:
+                ClosedAt = null;
+                ClosureReason = null;
+                changes.Add(new StatusChange(ClaimStatus.Reopened, ClaimStatus.Open, IsAutomatic: true));
+                Status = ClaimStatus.Open;
+                break;
+        }
+
+        return changes;
+    }
 }

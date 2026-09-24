@@ -5,4 +5,5 @@ namespace ClaimsModule.Application.Common.Interfaces;
 public interface IClaimRepository
 {
     void Add(Claim claim);
+    Task<Claim?> GetByIdAsync(Guid claimId, CancellationToken cancellationToken = default);
 }
