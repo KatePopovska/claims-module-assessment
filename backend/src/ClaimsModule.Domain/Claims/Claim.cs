@@ -43,6 +43,10 @@ public class Claim : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken
     public ICollection<ClaimDocument> Documents { get; set; } = [];
     public ICollection<ClaimAuditLog> AuditLogEntries { get; set; } = [];
 
+    public bool IsLastActiveClaimant(ClaimParty party) =>
+        party is { IsActive: true, PartyRole: PartyRole.Claimant }
+        && Parties.Count(p => p.IsActive && p.PartyRole == PartyRole.Claimant) == 1;
+
     public IReadOnlyList<StatusChange> ChangeStatus(ClaimStatus targetStatus, string? reason, DateTimeOffset now)
     {
         if (!ClaimStatusTransitions.IsValid(Status, targetStatus))

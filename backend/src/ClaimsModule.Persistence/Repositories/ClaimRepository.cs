@@ -15,4 +15,9 @@ public class ClaimRepository(IApplicationDbContext context) : IClaimRepository
             .Include(c => c.Parties)
             .Include(c => c.ReserveComponents).ThenInclude(rc => rc.History)
             .FirstOrDefaultAsync(c => c.Id == claimId, cancellationToken);
+
+    public Task<Claim?> GetWithPartiesAsync(Guid claimId, CancellationToken cancellationToken = default) =>
+        context.Claims
+            .Include(c => c.Parties)
+            .FirstOrDefaultAsync(c => c.Id == claimId, cancellationToken);
 }
