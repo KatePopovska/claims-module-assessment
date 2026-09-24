@@ -1,5 +1,8 @@
 using ClaimsModule.Application.Claims.Commands.CreateClaim;
 using ClaimsModule.Application.Claims.Commands.UpdateClaimStatus;
+using ClaimsModule.Application.Claims.Queries.GetClaimAuditLog;
+using ClaimsModule.Application.Claims.Queries.GetClaimDetail;
+using ClaimsModule.Application.Claims.Queries.ListClaims;
 using ClaimsModule.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +15,27 @@ namespace ClaimsModule.API.Controllers;
 [Route("api/claims")]
 public class ClaimsController(ISender sender) : ControllerBase
 {
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] ListClaimsQuery query, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetClaimDetailQuery(id), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/audit")]
+    public async Task<IActionResult> GetAuditLog(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    {
+        var result = await sender.Send(new GetClaimAuditLogQuery(id, page, pageSize), cancellationToken);
+        return Ok(result);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateClaimCommand command, CancellationToken cancellationToken)
     {
