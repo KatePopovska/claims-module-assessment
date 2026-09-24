@@ -119,9 +119,47 @@ Verified end-to-end against the real database across 9 scenarios: invalid transi
 
 An `OutOfMemoryException` mid-session turned out to be ~35 orphaned `MSBuild.exe`/`VBCSCompiler.exe` processes accumulated from the many background `dotnet run`/stop cycles across prior sessions — killed and rebuilt clean. Not a code issue.
 
+### FRS review pass on the status transition slice
+
+Business transition logic moved out of the handler into the Domain:
+
+- `ClaimStatusTransitions` — the transition table now carries the permitted roles per transition. All transitions are open to handler/supervisor/manager (FRS §4.1/§4.2; supervisor and manager inherit handler capabilities per §3) except `Closed → Reopened` (supervisor/manager, BR-ST-04). A missing or unknown role is rejected on every transition (previously only Reopen was role-checked).
+- `ClaimStatusChangePolicy.Evaluate` — pure evaluation returning blocking issues + acknowledged warnings. The handler maps issues to `ValidationException` (422).
+- `Claim.ChangeStatus` — applies the transition and returns the steps taken, including the automatic `Reopened → Open` hop. The handler writes one audit sequence per step, so the earlier "log the requested target, not the persisted status" workaround is no longer needed.
+
+Rule changes:
+
+- **Warning acknowledgement (BR-C-02):** `Draft → Open` is blocked while the loss date is outside the linked policy's effective period, unless the request sets `acknowledgeWarnings: true`. Only BR-C-02 requires acknowledgement; "no policy linked" and "no risk objects" stay non-blocking (FRS §5.4). Acknowledged warnings are recorded in the `STATUS_CHANGED` description.
+- **PendingPayment:** requires an `Active` reserve component whose current approved balance (sum of `Approved`/`AutoApproved` history amounts) is > 0. Previously any historical approved row counted, including one later fully reversed. CC-04 on close uses the same computed balance instead of the stored `CurrentAmount`, which nothing maintains yet.
+- **Reopened → Open:** skips the Open entry checks (BR-ST-02), since the FRS makes it immediate and unconditional; `ClosedAt`/`ClosureReason` are cleared.
+- **Audit:** the reason is now included in the `STATUS_CHANGED` description, so withdrawal reasons are recorded (previously lost — FRS §4.1 "withdrawal reason recorded"). The automatic hop is described as automatic and carries no reason.
+- **Reason length:** capped at 500 chars by the validator, matching the `ClosureReason` column (a longer reason previously caused a 500 on save).
+
+Verified end-to-end against the real database across 12 scenarios: Draft→Open on the expired policy blocked without acknowledgement, blocked for an unknown role, allowed with acknowledgement (warning recorded in audit); PendingPayment blocked with no reserves; 501-char reason rejected; Withdrawn with the reason in audit; Draft→Open without a policy not blocked; Open→Closed; Reopened blocked for handler, allowed for supervisor (persisted `Open`, closure fields cleared, full audit sequence); invalid Open→Draft lists valid next statuses; 404 for a missing claim.
+
+**Known limitation found during verification:** audit entries written in one `SaveChangesAsync` share the same `CreatedAt`, so ordering by `CreatedAt` alone doesn't reliably reproduce their write order (e.g. the three Reopen entries). To be addressed when `GET /api/claims/{id}/audit` is built. *(Resolved in the next entry.)*
+
+## 2026-09-24 (cont'd) — Claim Read Side for the Frontend
+
+Four queries, all through `IApplicationDbContext` with `.AsNoTracking()` projections (read/write split unchanged — no repository methods added):
+
+- `ListClaimsQuery` — `GET /api/claims`. Filters: `status` (repeatable, for the dashboard's multi-select), `dateFrom`/`dateTo` (loss date, inclusive), `assignedHandlerId`, `causeOfLossCode`, `policyId`, `search` (claim number or client name). Paged via `page`/`pageSize` (default 20, max 100), newest reported first. Returns `PagedResult<T>` (`items`, `totalCount`, `page`, `pageSize`) — the total count feeds FRS §11.1's "total claim count". Rows include cause-of-loss name (dashboard column) and `totalReserves`.
+- `GetClaimDetailQuery` — `GET /api/claims/{id}`. Header fields plus `validNextStatuses` (for the transition button), loss event, parties (incl. inactive, for the active/inactive display), risk objects, reserve summary per component (`currentBalance` + `pendingAmount`, FRS §11.3 Tab 3 cards), documents (metadata only — SAS URLs belong to the documents endpoint), and the 10 most recent audit entries.
+- `GetClaimAuditLogQuery` — `GET /api/claims/{id}/audit`, paged, reverse-chronological; 404 for a missing claim.
+- `GetClaimStatusesQuery` — `GET /api/reference/claim-statuses`, straight from `ClaimStatusTransitions` (no DB).
+
+**Reserve totals** use the same definition as the status-transition policy: sum of `Approved`/`AutoApproved` `ReserveHistory` amounts, computed in SQL — not the stored `CurrentAmount`, which nothing maintains until the reserve slice exists.
+
+**Audit ordering fix:** `AuditLogService` now stamps `CreatedAt` itself, strictly increasing within a request (bumped by one tick if the clock hasn't moved), and `ClaimsDbContext.SaveChangesAsync` only fills `CreatedAt` when it's still unset. Entries from one save now sort in write order; verified on the Reopen sequence (`Closed→Reopened`, `CLAIM_REOPENED`, automatic `Reopened→Open`). No migration needed.
+
+`AsSplitQuery` wasn't used on the detail projection — it lives in the relational EF package, which Application doesn't reference; one claim's child collections are small enough for a single query.
+
+Verified end-to-end against the real database: every list filter's `totalCount` matched a direct SQL count (status multi-select, loss-date range, cause of loss, policy, handler, client-name search); paging (page 2 of size 2 on the audit log); 422 for bad paging and `dateTo < dateFrom`; 404 for detail and audit on a missing claim. Reserve figures checked against hand-inserted `ReserveHistory` rows (auto-approved add, approved negative adjustment, pending adjustment, rejected add): component balances, pending amounts, list and detail totals all correct. The same data also confirmed the status rules on a real reserve: `Open → PendingPayment` now allowed, and closing with a pending reserve returns both CC-01 and CC-04 failures.
+
+Known gap: an unparseable enum in the query string (`?status=Nope`) gets ASP.NET's default `400` problem-details body, not the FRS §10.4 `422` shape — same as malformed JSON bodies on the existing `POST` endpoint. Not changed here.
+
 ## Next Steps (Not Started)
 
-- `ListClaimsQuery` (dashboard, paginated/filterable) + `GetClaimDetailQuery` (full detail) — the two queries that unlock a real frontend pass (built once already, then reverted per instruction; not yet rebuilt)
 - `AddPartyCommand`/`RemovePartyCommand`
 - Reserve management vertical slice (authority thresholds, `POST`/`PUT` reserves, approve/reject/retract, `ReserveLimitOverride`, GL posting job)
 - Remaining open questions in `docs/requirements.md` §9 (14 of 19 still open — the live-critical-issues question above is now resolved) don't block this — they can be resolved as the relevant feature is built, not all up front

@@ -42,7 +42,10 @@ public class ClaimsDbContext(
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.CreatedAt = utcNow;
+                    if (entry.Entity.CreatedAt == default)
+                    {
+                        entry.Entity.CreatedAt = utcNow;
+                    }
                     entry.Entity.UserCreated = currentUserService.UserId;
                     if (entry.Entity.OrganisationId == Guid.Empty)
                     {

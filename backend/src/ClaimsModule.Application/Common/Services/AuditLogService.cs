@@ -5,13 +5,12 @@ using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Application.Common.Services;
 
-public class AuditLogService(IApplicationDbContext context, ICorrelationIdProvider correlationIdProvider) : IAuditLogService
+public class AuditLogService(
+    IApplicationDbContext context,
+    ICorrelationIdProvider correlationIdProvider,
+    TimeProvider timeProvider) : IAuditLogService
 {
-    // Stages the entry only — the caller's IUnitOfWork.SaveChangesAsync commits it together
-    // with the rest of the command's changes, so an audit entry never exists without the
-    // business change it describes (or vice versa). Takes the Claim entity, not its Guid, so
-    // EF Core's own FK fixup resolves the DB-generated Id within that same SaveChangesAsync
-    // call even when the claim itself hasn't been persisted yet (e.g. on CLAIM_CREATED).
+    private DateTimeOffset _lastCreatedAt;
     public void Log(
         Claim claim,
         AuditEventType eventType,
@@ -30,7 +29,15 @@ public class AuditLogService(IApplicationDbContext context, ICorrelationIdProvid
             NewValue = newValue,
             RelatedEntityId = relatedEntityId,
             RelatedEntityType = relatedEntityType,
-            CorrelationId = correlationIdProvider.CorrelationId
+            CorrelationId = correlationIdProvider.CorrelationId,
+            CreatedAt = NextCreatedAt()
         });
+    }
+
+    private DateTimeOffset NextCreatedAt()
+    {
+        var now = timeProvider.GetUtcNow();
+        _lastCreatedAt = now > _lastCreatedAt ? now : _lastCreatedAt.AddTicks(1);
+        return _lastCreatedAt;
     }
 }
