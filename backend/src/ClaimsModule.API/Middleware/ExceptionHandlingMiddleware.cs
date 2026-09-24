@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using ClaimsModule.Application.Common.Exceptions;
 using FluentValidation;
 
 namespace ClaimsModule.API.Middleware;
@@ -15,6 +16,10 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         catch (ValidationException ex)
         {
             await WriteValidationErrorAsync(context, ex);
+        }
+        catch (NotFoundException ex)
+        {
+            await WriteNotFoundErrorAsync(context, ex);
         }
         catch (Exception ex)
         {
@@ -38,6 +43,21 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             title = "One or more validation errors occurred.",
             status = 422,
             errors
+        };
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body));
+    }
+
+    private static async Task WriteNotFoundErrorAsync(HttpContext context, NotFoundException ex)
+    {
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+
+        var body = new
+        {
+            type = "NotFound",
+            title = ex.Message,
+            status = 404
         };
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(body));

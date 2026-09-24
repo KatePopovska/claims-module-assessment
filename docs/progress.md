@@ -103,10 +103,25 @@ Before starting frontend work, prioritized the two reference-data queries that F
 
 Both go straight through `IApplicationDbContext` with `.AsNoTracking()` — no repository involved, per the established read/write split. Verified against the real seeded data (all 10 cause-of-loss codes, peril-category filtering, policy search by both number and client name) — all five test cases passed with no bugs found, unlike `CreateClaimCommand`'s slice.
 
+## 2026-09-24 — Status Transitions
+
+`PUT /api/claims/{id}/status` — `ClaimStatusTransitions` (Domain: a static rule table for BR-ST-01/FRS §4.2, application-code enforcement per ADR-001) + `UpdateClaimStatusCommand`/Handler. Reintroduced `IClaimRepository.GetByIdAsync` and `NotFoundException` — both concretely needed by this command (load-and-mutate an existing claim, 404 if missing), not speculative.
+
+**Resolves the "live-evaluated Critical issues" open question** (flagged 2026-09-23): no `ValidationIssue` entity exists in the domain model, so BR-ST-02(a)/CC-02 ("no unresolved Critical validation issues") is evaluated live against the claim's current `LossEvent` state (loss date not future, description ≥20 chars, cause-of-loss code still active) at the moment of the transition attempt, not against a persisted issue log. Decision logged here since nothing forced it either way.
+
+**Decision on the single-vs-dual audit question** (requirements.md §9.15, still formally open): both fire — a generic `STATUS_CHANGED` entry plus the specific `CLAIM_CLOSED`/`CLAIM_REOPENED` event, since the FRS defines distinct payload semantics for each (`STATUS_CHANGED`'s old/new status pair vs. `CLAIM_CLOSED`/`CLAIM_REOPENED`'s reason) and nothing suggests they're meant to be exclusive alternatives.
+
+`Reopened → Open` is implemented as "immediate, automatic" (business-rules.md §2) within the same command — the persisted `Status` lands directly on `Open`, never literally `Reopened`, but the audit trail records all three logical steps in order (`Closed→Reopened` STATUS_CHANGED, `CLAIM_REOPENED`, `Reopened→Open` STATUS_CHANGED).
+
+**Bug found via real audit-trail inspection (not just a 200 response):** the primary `STATUS_CHANGED` entry was logging `claim.Status` *after* `ApplyTransition` had already auto-advanced it to `Open`, silently skipping over the requested `Reopened` value in its own audit record (`Closed→Open` instead of `Closed→Reopened`). Fixed to log the requested target status, not the post-auto-hop persisted one.
+
+Verified end-to-end against the real database across 9 scenarios: invalid transition (422, lists valid next statuses), Draft→Open blocked by missing Claimant, valid Draft→Open, valid Open→Closed, Reopened blocked for Handler role, Reopened blocked for missing reason, valid Reopened as Supervisor (with the corrected audit trail), Withdrawn blocked for missing reason, PendingPayment blocked with no approved reserves, and 404 for a nonexistent claim.
+
+An `OutOfMemoryException` mid-session turned out to be ~35 orphaned `MSBuild.exe`/`VBCSCompiler.exe` processes accumulated from the many background `dotnet run`/stop cycles across prior sessions — killed and rebuilt clean. Not a code issue.
+
 ## Next Steps (Not Started)
 
-- `ListClaimsQuery` (dashboard, paginated/filterable) + `GetClaimDetailQuery` (full detail) — the two queries that unlock a real frontend pass
-- Status transitions: transition rule table (BR-ST-01) + `UpdateClaimStatusCommand` + closure conditions (CC-01..04) — this is also where the "live-evaluated Critical issues" question logged above gets resolved for real
+- `ListClaimsQuery` (dashboard, paginated/filterable) + `GetClaimDetailQuery` (full detail) — the two queries that unlock a real frontend pass (built once already, then reverted per instruction; not yet rebuilt)
 - `AddPartyCommand`/`RemovePartyCommand`
 - Reserve management vertical slice (authority thresholds, `POST`/`PUT` reserves, approve/reject/retract, `ReserveLimitOverride`, GL posting job)
-- Remaining open questions in `docs/requirements.md` §9 (15 of 19 still open) don't block this — they can be resolved as the relevant feature is built, not all up front
+- Remaining open questions in `docs/requirements.md` §9 (14 of 19 still open — the live-critical-issues question above is now resolved) don't block this — they can be resolved as the relevant feature is built, not all up front
