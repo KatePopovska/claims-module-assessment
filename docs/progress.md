@@ -94,9 +94,19 @@ Closed out the three foundational pieces every later command depends on:
 
 **Verified against the real database** (not just Swagger 200s): claim number `CLM-2026-0000001` format correct; `Claims`/`LossEvents`/`ClaimParties`/`ClaimRiskObjects`/`ClaimAuditLog` rows all correctly linked by FK; `ClaimAuditLog.CorrelationId` populated from `HttpContext.TraceIdentifier`; 422 structured error body for multi-field validation failures matches FRS §10.4 exactly; 401 for unauthenticated requests; 201 for a claim with no policy linked (correctly not blocked, per the scoping decision above).
 
+## 2026-09-23 (cont'd) — First Two Read-Side Queries
+
+Before starting frontend work, prioritized the two reference-data queries that FNOL Step 1 (policy typeahead, cause-of-loss dropdown) needs, over continuing further write-side commands:
+
+- `GetCauseOfLossCodesQuery` — `GET /api/reference/cause-of-loss-codes`, optional `?perilCategory=` filter (bound directly as a nullable enum query param — ASP.NET Core's model binder already accepts enum names from query strings natively, no extra config needed, unlike the JSON body case which needed `JsonStringEnumConverter`).
+- `SearchPoliciesQuery` — `GET /api/policies/search?q=...`, partial match on policy number or client name; empty/missing `q` returns all seeded policies rather than none, since an empty state is more useful for a typeahead than a dead end.
+
+Both go straight through `IApplicationDbContext` with `.AsNoTracking()` — no repository involved, per the established read/write split. Verified against the real seeded data (all 10 cause-of-loss codes, peril-category filtering, policy search by both number and client name) — all five test cases passed with no bugs found, unlike `CreateClaimCommand`'s slice.
+
 ## Next Steps (Not Started)
 
-- Status transitions: transition rule table (BR-ST-01) + `UpdateClaimStatusCommand` + closure conditions (CC-01..04) — this is also where the "live-evaluated Critical issues" question above gets resolved for real
+- `ListClaimsQuery` (dashboard, paginated/filterable) + `GetClaimDetailQuery` (full detail) — the two queries that unlock a real frontend pass
+- Status transitions: transition rule table (BR-ST-01) + `UpdateClaimStatusCommand` + closure conditions (CC-01..04) — this is also where the "live-evaluated Critical issues" question logged above gets resolved for real
 - `AddPartyCommand`/`RemovePartyCommand`
 - Reserve management vertical slice (authority thresholds, `POST`/`PUT` reserves, approve/reject/retract, `ReserveLimitOverride`, GL posting job)
 - Remaining open questions in `docs/requirements.md` §9 (15 of 19 still open) don't block this — they can be resolved as the relevant feature is built, not all up front
