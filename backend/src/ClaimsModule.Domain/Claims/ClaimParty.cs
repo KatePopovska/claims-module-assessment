@@ -19,4 +19,8 @@ public class ClaimParty : BaseAuditableEntity
     public string? Notes { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    public string GetDisplayName() => PartyType == PartyType.Company
+        ? CompanyName ?? string.Empty
+        : $"{FirstName} {LastName}".Trim();
 }
