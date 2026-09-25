@@ -3,7 +3,7 @@ using ClaimsModule.Domain.Common;
 
 namespace ClaimsModule.Domain.Documents;
 
-public class ClaimDocument : BaseAuditableEntity, ISoftDelete
+public class ClaimDocument : BaseAuditableEntity, ISoftDelete, IClaimChild
 {
     public Guid ClaimId { get; set; }
     public Claim Claim { get; set; } = null!;

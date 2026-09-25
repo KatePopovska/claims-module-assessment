@@ -37,6 +37,8 @@ public class ClaimsDbContext(
     {
         var utcNow = timeProvider.GetUtcNow();
 
+        MarkParentClaimsAsUpdated();
+
         foreach (var entry in ChangeTracker.Entries<BaseAuditableEntity>())
         {
             switch (entry.State)
@@ -72,5 +74,27 @@ public class ClaimsDbContext(
         }
 
         return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void MarkParentClaimsAsUpdated()
+    {
+        if (currentUserService.UserId is null)
+        {
+            return;
+        }
+
+        var changedClaimIds = ChangeTracker.Entries<IClaimChild>()
+            .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .Select(e => e.Entity.ClaimId)
+            .ToHashSet();
+
+        var claimsToTouch = ChangeTracker.Entries<Claim>()
+            .Where(e => e.State == EntityState.Unchanged && changedClaimIds.Contains(e.Entity.Id))
+            .ToList();
+
+        foreach (var claimEntry in claimsToTouch)
+        {
+            claimEntry.Property(c => c.UpdatedAt).IsModified = true;
+        }
     }
 }

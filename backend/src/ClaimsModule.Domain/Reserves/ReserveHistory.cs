@@ -3,7 +3,7 @@ using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Domain.Reserves;
 
-public class ReserveHistory : BaseAuditableEntity
+public class ReserveHistory : BaseAuditableEntity, IClaimChild
 {
     public Guid ReserveComponentId { get; set; }
     public ClaimReserveComponent ReserveComponent { get; set; } = null!;
