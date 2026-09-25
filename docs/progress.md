@@ -240,9 +240,38 @@ Not unit-tested (need a database or HTTP): query handlers (EF projections), `Upd
 - 12 new domain unit tests (`ClaimSlaTests`): monitored vs unmonitored statuses, the exact 48-hour boundary, never-updated claims using `CreatedAt`, a recent update on an old claim, breach within 24h suppresses, 24h+ allows, other audit events don't suppress. All 184 tests pass.
 - End-to-end against LocalDB, triggering the recurring job from the Hangfire dashboard: the job is registered with the right cron; with five backdated claims, only the Draft never-updated for 72h and the Open claim updated 50h ago were flagged (Closed, UnderInvestigation and Open-47h weren't); an immediate second run added nothing; after moving one breach entry back 25 hours, the next run added exactly one new entry for that claim only.
 
+**Claim activity (decided with the project owner, 2026-09-25):** any change a **user** makes to the claim or its children resets the SLA clock, not only changes to the `Claims` row. Children implement `IClaimChild` (`ClaimParty`, `ClaimRiskObject`, `LossEvent`, `ClaimReserveComponent`, `ReserveHistory`, `ClaimDocument`; not `ClaimAuditLog`), and `ClaimsDbContext.MarkParentClaimsAsUpdated` marks the tracked parent claim's `UpdatedAt` modified when a child is added, changed or deleted. Skipped when there's no current user, so background jobs (GL posting, SLA) don't count as activity. Touching the claim also bumps its `RowVer`, so concurrent changes anywhere in one claim now conflict with a 409. Verified end-to-end: party add/remove and reserve creation updated `UpdatedAt` and `RowVer`; the GL job didn't; a backdated claim with a party change wasn't flagged while an untouched one was.
+
+## 2026-09-25 (cont'd) — Documents
+
+`POST /api/claims/{id}/documents` (multipart upload) and `GET /api/claims/{id}/documents` (list with download links), aligned with FRS §13, BR-D-01..03 and Assessment §3.6: upload goes **through the API** (the FRS contract is a multipart `POST` that stores the file and creates the record), download goes **only through signed URLs** — bytes are never streamed through a controller. A direct browser-to-Blob upload with a write SAS was considered and rejected: it changes the FRS contract, splits validation from storage, and leaves orphaned blobs when the confirm step never arrives.
+
+**Structure**
+- Domain: `DocumentPolicy` — allowlist by extension (PDF, JPEG, PNG, DOCX, XLSX, TXT, CSV), 50 MB, file signatures (`%PDF`, PNG, JPEG, ZIP header for DOCX/XLSX; none for TXT/CSV), display-name and stored-name rules. `Claim.AddDocument` assigns a `SequentialGuid` Id (like reserves; `ClaimDocument.Id` configured `ValueGeneratedNever`, no migration), so `DOCUMENT_UPLOADED` gets `RelatedEntityId = documentId` in the same save.
+- Application: `UploadClaimDocumentCommand` (+ validator) and `GetClaimDocumentsQuery`; `IClaimRepository.GetWithDocumentsAsync`; `IStorageService` now returns a `DownloadLink(Url, ExpiresAt?)` and has `DeleteAsync`.
+- Infrastructure: `AzureBlobStorageService` and `LocalFileSystemStorageService` updated; API: `DocumentsController`.
+
+**Decisions**
+- **Content type comes from the extension**, not the browser's `Content-Type`. Windows browsers often send CSV as `application/vnd.ms-excel`, which a strict allowlist would reject. The file signature check stops an executable renamed to `.pdf`.
+- **Stored as `{documentId}-{sanitisedName}`** inside the FRS path, so two `invoice.pdf` uploads never overwrite each other. Sanitising keeps `[A-Za-z0-9._-]`, strips any path, trims to 100 characters keeping the extension. The display name (`DocumentName`) keeps the user's original characters but never a path.
+- **Quotes in file names:** browsers encode `"` as `%22` (and CR/LF) in multipart file names per the HTML standard; the controller decodes exactly those, so `Raport "final".pdf` isn't stored as `Raport %22final%22.pdf`.
+- **If saving the record fails after the upload, the stored file is deleted** (compensation), so no orphaned blobs.
+- **Signed links (Azure):** read-only, one blob, valid from 5 minutes ago (clock skew) to 1 hour ahead, HTTPS-only when the endpoint is HTTPS (HTTP allowed only for local Azurite), and served `inline` with the original file name (ASCII fallback + RFC 5987 UTF-8 name) — the FRS says the frontend "opens URL in new tab".
+- **Local fallback** is used whenever Azure isn't configured (`Storage:Provider = AzureBlob` *and* a connection string), not only when the provider says `LocalFileSystem`. Files live under the API's content root (`Storage:LocalPath`, default `uploads`), with a check that no path escapes it. In Development only, ASP.NET's static-file middleware serves `/uploads`, and links are absolute (the Angular app runs on another port). They don't expire, so `downloadUrlExpiresAt` is `null`.
+- Request limits raised to 55 MB on the upload action (Kestrel's default is ~30 MB), so 50–55 MB files get the proper 422.
+- All roles can upload and list (FRS §3: "upload documents" is a Handler capability). Uploads count as claim activity.
+
+**Verified**
+- Unit tests: 33 new (domain: allowlist, signatures, sanitising incl. path traversal and non-ASCII, display names, stored names, `AddDocument`; application: stored path and audit, stream rewound after the signature check, mismatched content rejected before storing, file deleted when the save fails, path stripped from the name, 404, validator limits incl. exactly 50 MB). All 228 tests pass.
+- End-to-end, local storage: valid PDF, duplicate name (two files), CSV sent as `vnd.ms-excel` (stored as `text/csv`), path-traversal name (stored and displayed as `evil.txt`), `.exe` (422), exe renamed to `.pdf` (422, content check), empty file (422), 51 MB (422), 60 MB (framework 400), unknown claim (404 for upload and list). The link served identical bytes with the right content type without auth; `/uploads/../` was refused. `DOCUMENT_UPLOADED` pointed at each document, the claim's `UpdatedAt` was updated, and the claim detail listed the documents.
+- End-to-end, Azure path against Azurite (Visual Studio's instance): 13 checks — SAS is read-only, single-blob, starts 5 minutes early and expires in 1 hour matching `downloadUrlExpiresAt`; the link downloads identical bytes as inline PDF with the UTF-8 file name; the blob without a signature, with tampered permissions, or written through the link is refused (403); the list returns fresh working links.
+
+**Known gaps**
+- Signing uses the storage account key from the connection string. For Azure, a user-delegation SAS via the app's managed identity (no account key in config) is the stronger option — to do with the deployment step, since it can't be exercised against Azurite.
+- With the local provider outside Development, links point at `/uploads` but nothing serves it (by design — local storage is a dev fallback). Selecting `AzureBlob` without a connection string silently falls back to local, which on App Service would mean ephemeral disk.
+- No delete-document endpoint (not in the FRS). A missing `file` field or an over-limit request returns the framework's 400, the same gap as invalid enums.
+
 ## Next Steps (Not Started)
 
-- Integration tests (Testcontainers SQL Server or LocalDB + `WebApplicationFactory`) for the query handlers, status/create handlers, middleware mapping and the GL job
-- Decide what counts as claim activity for the SLA job (see the known gap above)
-- Documents: upload/list with SAS URLs (use the client-side Id approach above for `DOCUMENT_UPLOADED`'s related Id)
+- Integration tests (Testcontainers SQL Server or LocalDB + `WebApplicationFactory`) for the query handlers, status/create handlers, middleware mapping, the GL and SLA jobs, and document upload
 - Remaining open questions in `docs/requirements.md` §9 (14 of 19 still open — the live-critical-issues question above is now resolved) don't block this — they can be resolved as the relevant feature is built, not all up front

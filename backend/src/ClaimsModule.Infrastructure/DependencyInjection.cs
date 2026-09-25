@@ -16,8 +16,7 @@ public static class DependencyInjection
         services.AddScoped<ICorrelationIdProvider, CorrelationIdProvider>();
         services.AddScoped<IGlPostingScheduler, HangfireGlPostingScheduler>();
 
-        var provider = configuration["Storage:Provider"] ?? "LocalFileSystem";
-        if (provider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
+        if (configuration.UsesAzureBlobStorage())
         {
             services.AddScoped<IStorageService, AzureBlobStorageService>();
         }
@@ -28,4 +27,8 @@ public static class DependencyInjection
 
         return services;
     }
+
+    public static bool UsesAzureBlobStorage(this IConfiguration configuration) =>
+        string.Equals(configuration["Storage:Provider"], "AzureBlob", StringComparison.OrdinalIgnoreCase)
+        && !string.IsNullOrWhiteSpace(configuration["Storage:AzureBlob:ConnectionString"]);
 }

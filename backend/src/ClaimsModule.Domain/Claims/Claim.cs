@@ -58,6 +58,27 @@ public class Claim : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken
         return component;
     }
 
+    public ClaimDocument AddDocument(string fileName, string contentType, long fileSizeBytes, string? documentType, string? notes, Guid? uploadedByUserId, DateTimeOffset now)
+    {
+        var document = new ClaimDocument
+        {
+            Id = SequentialGuid.NewGuid(),
+            Claim = this,
+            ClaimId = Id,
+            DocumentName = fileName,
+            DocumentType = string.IsNullOrWhiteSpace(documentType) ? DocumentPolicy.DefaultDocumentType : documentType.Trim(),
+            ContentType = contentType,
+            FileSizeBytes = fileSizeBytes,
+            Notes = notes,
+            UploadedByUserId = uploadedByUserId,
+            UploadedAt = now
+        };
+
+        Documents.Add(document);
+
+        return document;
+    }
+
     public ReserveHistory? FindReserveTransaction(Guid transactionId) =>
         ReserveComponents.SelectMany(rc => rc.History).FirstOrDefault(h => h.Id == transactionId);
 

@@ -11,6 +11,8 @@ public class ClaimDocumentConfiguration : AuditableEntityConfiguration<ClaimDocu
     {
         base.Configure(builder);
 
+        builder.Property(d => d.Id).ValueGeneratedNever();
+
         builder.ToTable("ClaimDocuments");
 
         builder.ConfigureSoftDelete();
