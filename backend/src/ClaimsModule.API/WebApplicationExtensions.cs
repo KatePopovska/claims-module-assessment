@@ -1,4 +1,5 @@
 using ClaimsModule.API.Middleware;
+using ClaimsModule.Infrastructure.Jobs;
 using Hangfire;
 
 namespace ClaimsModule.API;
@@ -25,6 +26,7 @@ public static class WebApplicationExtensions
         if (app.Configuration.IsHangfireConfigured())
         {
             app.UseHangfireDashboard();
+            RecurringJobs.Register(app.Services.GetRequiredService<IRecurringJobManager>());
         }
 
         app.MapControllers();

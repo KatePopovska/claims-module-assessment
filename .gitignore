@@ -4,6 +4,7 @@
 *.user
 *.suo
 .vs/
+[Tt]est[Rr]esults/
 
 # --- Angular / Node ---
 node_modules/
