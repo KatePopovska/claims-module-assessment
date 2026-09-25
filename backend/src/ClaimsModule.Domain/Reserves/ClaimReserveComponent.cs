@@ -4,7 +4,7 @@ using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Domain.Reserves;
 
-public class ClaimReserveComponent : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken
+public class ClaimReserveComponent : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken, IClaimChild
 {
     public Guid ClaimId { get; set; }
     public Claim Claim { get; set; } = null!;

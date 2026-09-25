@@ -3,7 +3,7 @@ using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Domain.Claims;
 
-public class ClaimParty : BaseAuditableEntity
+public class ClaimParty : BaseAuditableEntity, IClaimChild
 {
     public Guid ClaimId { get; set; }
     public Claim Claim { get; set; } = null!;

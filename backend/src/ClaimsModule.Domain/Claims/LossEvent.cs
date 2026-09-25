@@ -3,7 +3,7 @@ using ClaimsModule.Domain.Reference;
 
 namespace ClaimsModule.Domain.Claims;
 
-public class LossEvent : BaseAuditableEntity, ISoftDelete
+public class LossEvent : BaseAuditableEntity, ISoftDelete, IClaimChild
 {
     public Guid ClaimId { get; set; }
     public Claim Claim { get; set; } = null!;
