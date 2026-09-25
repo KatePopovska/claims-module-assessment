@@ -11,6 +11,8 @@ public class ReserveHistoryConfiguration : AuditableEntityConfiguration<ReserveH
     {
         base.Configure(builder);
 
+        builder.Property(h => h.Id).ValueGeneratedNever();
+
         builder.ToTable("ReserveHistory");
 
         builder.Property(h => h.TransactionType).HasConversion<string>().HasMaxLength(50).IsRequired();

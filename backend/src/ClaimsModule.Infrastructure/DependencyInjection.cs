@@ -1,4 +1,5 @@
 using ClaimsModule.Application.Common.Interfaces;
+using ClaimsModule.Infrastructure.Jobs;
 using ClaimsModule.Infrastructure.Services;
 using ClaimsModule.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
@@ -13,6 +14,7 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ICorrelationIdProvider, CorrelationIdProvider>();
+        services.AddScoped<IGlPostingScheduler, HangfireGlPostingScheduler>();
 
         var provider = configuration["Storage:Provider"] ?? "LocalFileSystem";
         if (provider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))

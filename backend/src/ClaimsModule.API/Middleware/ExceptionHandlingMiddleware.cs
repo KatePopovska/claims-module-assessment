@@ -2,11 +2,16 @@ using System.Net;
 using System.Text.Json;
 using ClaimsModule.Application.Common.Exceptions;
 using FluentValidation;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClaimsModule.API.Middleware;
 
 public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
 {
+    private const int UniqueIndexViolation = 2601;
+    private const int UniqueConstraintViolation = 2627;
+
     public async Task InvokeAsync(HttpContext context)
     {
         try
@@ -20,6 +25,11 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         catch (NotFoundException ex)
         {
             await WriteNotFoundErrorAsync(context, ex);
+        }
+        catch (DbUpdateException ex) when (IsConcurrencyConflict(ex))
+        {
+            logger.LogWarning(ex, "Concurrency conflict processing {Method} {Path}", context.Request.Method, context.Request.Path);
+            await WriteConflictErrorAsync(context);
         }
         catch (Exception ex)
         {
@@ -58,6 +68,25 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             type = "NotFound",
             title = ex.Message,
             status = 404
+        };
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body));
+    }
+
+    private static bool IsConcurrencyConflict(DbUpdateException ex) =>
+        ex is DbUpdateConcurrencyException
+        || ex.InnerException is SqlException { Number: UniqueIndexViolation or UniqueConstraintViolation };
+
+    private static async Task WriteConflictErrorAsync(HttpContext context)
+    {
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+
+        var body = new
+        {
+            type = "Conflict",
+            title = "The claim was changed by another request. Reload it and try again.",
+            status = 409
         };
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(body));

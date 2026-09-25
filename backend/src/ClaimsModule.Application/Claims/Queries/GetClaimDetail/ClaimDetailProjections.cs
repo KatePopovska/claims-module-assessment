@@ -34,7 +34,7 @@ internal static class ClaimDetailProjections
         r.IsPrimary,
         r.AssetReference);
 
-    private static readonly Expression<Func<ClaimReserveComponent, ReserveComponentSummaryDto>> ReserveComponent = rc => new ReserveComponentSummaryDto(
+    internal static readonly Expression<Func<ClaimReserveComponent, ReserveComponentSummaryDto>> ReserveComponent = rc => new ReserveComponentSummaryDto(
         rc.Id,
         rc.Component,
         rc.Status,

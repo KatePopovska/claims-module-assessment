@@ -43,6 +43,37 @@ public class Claim : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken
     public ICollection<ClaimDocument> Documents { get; set; } = [];
     public ICollection<ClaimAuditLog> AuditLogEntries { get; set; } = [];
 
+    public ClaimReserveComponent OpenReserveComponent(ReserveComponentType componentType)
+    {
+        var component = new ClaimReserveComponent
+        {
+            Id = SequentialGuid.NewGuid(),
+            Claim = this,
+            ClaimId = Id,
+            Component = componentType
+        };
+
+        ReserveComponents.Add(component);
+
+        return component;
+    }
+
+    public ReserveHistory? FindReserveTransaction(Guid transactionId) =>
+        ReserveComponents.SelectMany(rc => rc.History).FirstOrDefault(h => h.Id == transactionId);
+
+    public decimal GetApprovedReserveTotal() => ReserveComponents.Sum(rc => rc.GetApprovedBalance());
+
+    public bool WouldExceedReserveLimit(decimal amount) =>
+        !ReserveLimitOverride && GetApprovedReserveTotal() + amount > ReserveAuthority.ClaimReserveLimit;
+
+    public void SetReserveLimitOverride(Guid managerUserId, string reason, DateTimeOffset now)
+    {
+        ReserveLimitOverride = true;
+        ReserveLimitOverrideByUserId = managerUserId;
+        ReserveLimitOverrideAt = now;
+        ReserveLimitOverrideReason = reason;
+    }
+
     public bool IsLastActiveClaimant(ClaimParty party) =>
         party is { IsActive: true, PartyRole: PartyRole.Claimant }
         && Parties.Count(p => p.IsActive && p.PartyRole == PartyRole.Claimant) == 1;

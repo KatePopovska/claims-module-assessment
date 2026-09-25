@@ -11,6 +11,8 @@ public class ClaimReserveComponentConfiguration : AuditableEntityConfiguration<C
     {
         base.Configure(builder);
 
+        builder.Property(r => r.Id).ValueGeneratedNever();
+
         builder.ToTable("ClaimReserveComponents");
 
         builder.ConfigureSoftDelete();

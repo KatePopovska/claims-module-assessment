@@ -30,4 +30,49 @@ public class ReserveHistory : BaseAuditableEntity
     public int ChangeSequence { get; set; }
 
     public Guid SubmittedByUserId { get; set; }
+
+    public bool IsApproved() => ApprovalStatus is ReserveApprovalStatus.Approved or ReserveApprovalStatus.AutoApproved;
+
+    public bool IsPending() => ApprovalStatus == ReserveApprovalStatus.PendingApproval;
+
+    public void Approve(Guid approvedByUserId, DateTimeOffset now)
+    {
+        EnsurePending();
+        ApprovalStatus = ReserveApprovalStatus.Approved;
+        ApprovedByUserId = approvedByUserId;
+        ApprovedAt = now;
+    }
+
+    public void Reject(Guid rejectedByUserId, string reason, DateTimeOffset now)
+    {
+        EnsurePending();
+        ApprovalStatus = ReserveApprovalStatus.Rejected;
+        RejectedByUserId = rejectedByUserId;
+        RejectedAt = now;
+        RejectionReason = reason;
+        PostingStatus = ReservePostingStatus.Cancelled;
+    }
+
+    public void Retract()
+    {
+        EnsurePending();
+        ApprovalStatus = ReserveApprovalStatus.Cancelled;
+        PostingStatus = ReservePostingStatus.Cancelled;
+    }
+
+    public void MarkPosted(string? postingJobId)
+    {
+        PostingStatus = ReservePostingStatus.Posted;
+        PostingJobId = postingJobId;
+    }
+
+    public void MarkPostingFailed() => PostingStatus = ReservePostingStatus.Failed;
+
+    private void EnsurePending()
+    {
+        if (!IsPending())
+        {
+            throw new InvalidOperationException($"Reserve transaction {Id} is {ApprovalStatus}, not {ReserveApprovalStatus.PendingApproval}.");
+        }
+    }
 }
