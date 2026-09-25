@@ -20,4 +20,38 @@ public class ClaimReserveComponent : BaseAuditableEntity, ISoftDelete, IHasConcu
     public DateTimeOffset? DeletedAt { get; set; }
 
     public ICollection<ReserveHistory> History { get; set; } = [];
+
+    public decimal GetApprovedBalance() => History.Where(h => h.IsApproved()).Sum(h => h.Amount);
+
+    public bool HasPendingTransaction() => History.Any(h => h.IsPending());
+
+    public ReserveHistory RecordTransaction(decimal amount, string? changeReason, Guid submittedByUserId, bool requiresApproval)
+    {
+        var previousBalance = GetApprovedBalance();
+        var changeSequence = History.Count == 0 ? 1 : History.Max(h => h.ChangeSequence) + 1;
+
+        var transaction = new ReserveHistory
+        {
+            Id = SequentialGuid.NewGuid(),
+            ReserveComponent = this,
+            ReserveComponentId = Id,
+            ClaimId = ClaimId,
+            TransactionType = History.Count == 0 ? ReserveTransactionType.Add : amount < 0 ? ReserveTransactionType.Reverse : ReserveTransactionType.Adjust,
+            Amount = amount,
+            PreviousBalance = previousBalance,
+            NewBalance = previousBalance + amount,
+            ApprovalStatus = requiresApproval ? ReserveApprovalStatus.PendingApproval : ReserveApprovalStatus.AutoApproved,
+            ChangeReason = changeReason,
+            SubmittedByUserId = submittedByUserId,
+            ChangeSequence = changeSequence,
+            IdempotencyKey = $"Reserve:{Id}:Change:{changeSequence}"
+        };
+
+        History.Add(transaction);
+        RecalculateCurrentAmount();
+
+        return transaction;
+    }
+
+    public void RecalculateCurrentAmount() => CurrentAmount = GetApprovedBalance();
 }

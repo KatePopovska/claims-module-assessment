@@ -172,7 +172,45 @@ Two readability refactors after the first pass, both verified to produce byte-id
 
 Verified end-to-end against the real database across 14 scenarios: removing the only Claimant (422); adding a company Witness (201, full party returned); person without names and company without company name (422 per field); 51-char phone (422); adding a second Claimant then removing the first (204), repeating that removal (204, no extra audit entry), then removing the remaining Claimant (422); unknown party, unknown claim on remove and on add (404). The detail endpoint shows the removed party as `isActive: false`, and the audit log holds exactly the expected `PARTY_ADDED` ×2 / `PARTY_REMOVED` ×1 entries. An invalid enum in the body (`partyRole: "Nope"`) gets the framework's 400, the same known gap as above.
 
+## 2026-09-24 (cont'd) — Reserves + GL Posting Job
+
+Endpoints (see `docs/api-contract.md` §2): `GET`/`POST /api/claims/{id}/reserves`, `PUT .../reserves/{reserveComponentId}`, `POST .../reserves/{txnId}/approve|reject|retract`, and `PUT /api/claims/{id}/reserve-limit-override`.
+
+**Structure**
+- Domain: `ReserveAuthority` (thresholds and role checks), `ReserveRules` (every submission/approval/rejection/retraction/override rule, returning `BusinessRuleViolation`s), and behaviour on the entities — `ClaimReserveComponent.RecordTransaction` (sequence, balances, transaction type, idempotency key), `ReserveHistory.Approve/Reject/Retract/MarkPosted/MarkPostingFailed`, `Claim.GetApprovedReserveTotal/WouldExceedReserveLimit/SetReserveLimitOverride/FindReserveTransaction`. `ClaimStatusChangePolicy` now uses `ClaimReserveComponent.GetApprovedBalance()` instead of its own copy.
+- Application: one command per action under `Reserves/Commands`, a shared `ReserveTransactionSubmitter` for `POST` and `PUT`, `GetClaimReservesQuery`, and `IGlPostingScheduler`. Transaction DTOs come from one projection (`ReserveProjections`), used both in SQL and in memory.
+- Infrastructure: `PostGLReserveChangeJob` (Hangfire) and `HangfireGlPostingScheduler`. The job only sends MediatR commands; the posting logic lives in Application.
+
+**Decisions where the FRS is silent**
+- Authority thresholds apply to the **absolute** transaction amount (FRS §6.3 says "amount of the individual transaction"; a $150k reduction needs a Manager just like a $150k increase).
+- A component with a `PendingApproval` transaction accepts no further changes until it's resolved — the reading of FRS §6.4's "a reserve in PendingApproval may not be modified … retract, then submit a new one". This also keeps `PreviousBalance`/`NewBalance` unambiguous.
+- `PUT` accepts negative deltas (`Reverse`), but a non-subrogation component's approved balance can't go below zero (FRS §6.2 "May Go Negative? No"). `POST` follows BR-R-01 literally (`> 0`, non-zero for subrogation).
+- BR-R-05: a change that would take the approved total over $10M is always `PendingApproval` (never auto-approved), returns the FRS warning text, and can't be approved until a Manager sets the override. The total includes `SubrogationRecoverable` (negative) balances, since BR-R-05 says "across all components".
+- Rejection uses the same amount authority as approval (FRS §3: Supervisor may "approve/reject reserves up to $100,000"). Self-rejection is allowed — BR-R-03 only forbids self-approval.
+- Override endpoint: `PUT /api/claims/{id}/reserve-limit-override` (ADR-003 defined the columns and audit event but no endpoint). Setting it twice is a 422.
+
+**Ids before save:** the idempotency key `Reserve:{ReserveComponentId}:Change:{n}` needs the component Id when the history row is created, and the reserve audit entries need the transaction Id. The domain assigns these Ids itself: `Claim.OpenReserveComponent` and `ClaimReserveComponent.RecordTransaction` set `Id = SequentialGuid.NewGuid()` (Domain/Common — the same SQL Server-ordered algorithm as EF Core's `SequentialGuidValueGenerator`, so no index fragmentation). Reserves stay inside the Claim aggregate: handlers add them through the domain entities and persist everything with `IUnitOfWork.SaveChangesAsync()`; `IClaimRepository` has no reserve-specific methods and there is no `IReserveRepository`. Both Ids are configured `ValueGeneratedNever()` — without it, EF treats a new entity that already has a key as an existing row and issues an `UPDATE` (observed: `DbUpdateConcurrencyException`, 0 rows affected). The `NEWSEQUENTIALID()` column default is untouched and `dotnet ef migrations has-pending-model-changes` reports no changes — no migration. Other entities are unchanged; the same approach closes the `PARTY_ADDED`/`DOCUMENT_UPLOADED` related-Id gap noted in the Parties entry when documents are built.
+
+**GL posting job (FRS §6.5, §12.1)**
+- Enqueued after the save, on auto-approval and on manual approval, with `ReserveHistoryId`, `ClaimId`, `IdempotencyKey`.
+- Re-entrant: a transaction already `Posted` is a no-op, and the audit entry and the `Posted` status are written in the same save, so a retry after a failure can't duplicate the entry. Mismatched keys and non-approved transactions throw.
+- `[AutomaticRetry(Attempts = 10)]` (Hangfire's default). On the final attempt the job marks the row `Failed` and writes `GL_POSTING_FAILED` in a fresh DI scope, then rethrows so Hangfire records the job as failed.
+- `PostingJobId` stores the Hangfire job id.
+
+**Other changes**
+- **Bug fix — validators never ran for commands without a response.** `ValidationBehaviour` was constrained to `IRequest<TResponse>`; with MediatR 14, `IRequest` (void) commands don't satisfy it, so their validators were silently skipped. This affected `RemoveClaimPartyCommand` since the Parties slice. Constraint changed to `where TRequest : notnull`; verified with an empty party id (now 422).
+- `ExceptionHandlingMiddleware` maps `DbUpdateConcurrencyException` and unique-index violations to `409 Conflict` (component `RowVer` on concurrent approvals; the `(ReserveComponentId, ChangeSequence)` unique index on concurrent submissions).
+
+**Verification** — a 45-check end-to-end script against the real database, all passing: policy required; auto-approval + GL posting; duplicate component, zero/negative amounts, negative subrogation; supervisor band, handler can't approve, self-approval (FRS message), a second supervisor can; manager-only band; approving a non-pending transaction; reject (reason required, role, `Cancelled` posting); resubmit after rejection (sequence 2, previous balance 0); retract (submitter only, not twice); balance floor and `Reverse`; balances/total/transaction list and the claim-detail total; the $10M limit (warning, no auto-approval, approval blocked, Manager-only override, reason required, not twice, approval after override); 404s. Direct DB checks confirmed `CurrentAmount`, balances, idempotency keys, job ids, and that only the 6 approved transactions were posted.
+
+GL job resilience checked through Hangfire itself: requeueing a succeeded job ran it again with no second `GL_POSTING_SIMULATED` entry. The retries-exhausted path was simulated on test data (row reset to `Pending`, job argument given a wrong key, `RetryCount` set to 10): the row became `Failed`, `GL_POSTING_FAILED` recorded the reason, and Hangfire marked the job `Failed`.
+
+**Not done / known gaps**
+- The Hangfire enqueue happens after the database save, so a crash between the two leaves an approved transaction with `PostingStatus = Pending` and no job. There's no sweeper for that yet.
+- No rule about reserves on `Closed`/`Withdrawn` claims — the FRS doesn't define one.
+
 ## Next Steps (Not Started)
 
-- Reserve management vertical slice (authority thresholds, `POST`/`PUT` reserves, approve/reject/retract, `ReserveLimitOverride`, GL posting job)
+- SLA monitoring job (FRS §12.2)
+- Documents: upload/list with SAS URLs (use the client-side Id approach above for `DOCUMENT_UPLOADED`'s related Id)
 - Remaining open questions in `docs/requirements.md` §9 (14 of 19 still open — the live-critical-issues question above is now resolved) don't block this — they can be resolved as the relevant feature is built, not all up front

@@ -22,10 +22,21 @@ Source: FRS §10 (authoritative endpoint list and behavior), cross-checked again
 |---|---|---|
 | `/api/claims/{id}/reserves` | POST | Opens a **new** reserve component (first transaction for a given `Component` type on the claim; `TransactionType = Add`). Body: `{ component, amount, changeReason }`. Requires the claim to have a linked policy (`PolicyId` not null) — BR-C-06 blocks all reserve creation while unlinked. Validates authority threshold. Creates `ReserveHistory` record. If auto-approved, enqueues GL posting job. Returns `201` with the created transaction and its approval status. |
 | `/api/claims/{id}/reserves/{reserveComponentId}` | PUT | Adjusts an **existing** reserve component's balance. Body: `{ amount, changeReason }` (delta, positive or negative). Requires the claim to have a linked policy. Internally **inserts** a new `ReserveHistory` row (`TransactionType = Adjust`/`Reverse`, `ChangeSequence` incremented) — never mutates an existing history row (FRS §6.6). Goes through the same authority-threshold/approval workflow as `POST`. `ClaimReserveComponents.CurrentAmount` is recomputed, not directly assigned. See `docs/decisions.md` ADR-002. |
-| `/api/claims/{id}/reserves` | GET | Reserve summary (current balance per component) + full transaction history. |
+| `/api/claims/{id}/reserves` | GET | Reserve summary (current balance per component) + full transaction history. Returns `{ totalReserves, reserveLimitOverride, components: [{ id, component, status, currentBalance, pendingAmount }], transactions: [...] }`, transactions newest first. `404` if the claim doesn't exist. |
 | `/api/claims/{id}/reserves/{txnId}/approve` | POST | Approve a pending reserve. Requires Supervisor/Manager role. Validates role, validates not self-approving. On success: updates approval status, enqueues GL posting job. |
 | `/api/claims/{id}/reserves/{txnId}/reject` | POST | Reject a pending reserve. Requires Supervisor/Manager. Body: `{ rejectionReason }`. Sets transaction status to `Rejected`. |
 | `/api/claims/{id}/reserves/{txnId}/retract` | POST | Submitter retracts their own pending reserve before approval. Sets status to `Cancelled`. |
+| `/api/claims/{id}/reserve-limit-override` | PUT | Manager sets the $10M aggregate-limit override (BR-R-05, ADR-003). Body: `{ reason }` (required, max 500). `422` for non-Manager or if already set. Returns `204`. Audited as `RESERVE_OVERRIDE_SET`. |
+
+**Implemented behaviour (2026-09-24):**
+
+- `POST`/`PUT` return `201` with `{ transaction, warnings }`. `transaction` carries `approvalStatus` (`AutoApproved` or `PendingApproval`), `previousBalance`/`newBalance`, `changeSequence` and `postingStatus`. `warnings` contains the BR-R-05 message when the change would take the claim's approved total over $10,000,000.
+- Amount rules: `POST` requires `amount > 0` (non-zero for `SubrogationRecoverable`); `PUT` requires a non-zero delta and must not take a non-subrogation component's approved balance below zero. Max 19 digits / 4 decimals; `changeReason` optional, max 1000.
+- Authority thresholds use the **absolute** transaction amount, so a large reduction needs the same approval as a large increase.
+- While a component has a `PendingApproval` transaction, further `PUT`s on it return `422` until it's approved, rejected or retracted (FRS §6.4).
+- A change that would breach the $10M limit is never auto-approved, and can't be approved until a Manager sets the override.
+- Approve and reject both apply the amount authority (Supervisor up to $100,000, Manager above); approve also rejects self-approval. Only the submitter can retract. All three return `200` with the updated transaction, or `422` if it isn't `PendingApproval`.
+- Concurrent edits of the same reserve return `409 Conflict`.
 
 > **Resolved (docs/decisions.md ADR-002):** the FRS's single-`POST` design and the Assessment Brief's `PUT` requirement are both honored — `POST` opens a component, `PUT` adjusts one, and both write only `INSERT`s to `ReserveHistory` internally. See the table above.
 >

@@ -41,7 +41,7 @@ public static class ClaimStatusChangePolicy
                 break;
 
             case ClaimStatus.PendingPayment:
-                if (!claim.ReserveComponents.Any(rc => rc.Status == ReserveComponentStatus.Active && GetApprovedBalance(rc) > 0))
+                if (!claim.ReserveComponents.Any(rc => rc.Status == ReserveComponentStatus.Active && rc.GetApprovedBalance() > 0))
                 {
                     issues.Add(new StatusChangeIssue("Reserves", "At least one reserve component with a current approved balance is required before moving to PendingPayment."));
                 }
@@ -54,7 +54,7 @@ public static class ClaimStatusChangePolicy
                 }
                 AddCriticalIssues(claim, now, isCauseOfLossCodeActive, issues);
                 AddMissingClaimantIssue(claim, issues);
-                if (claim.ReserveComponents.Any(rc => GetApprovedBalance(rc) > 0) && string.IsNullOrWhiteSpace(request.Reason))
+                if (claim.ReserveComponents.Any(rc => rc.GetApprovedBalance() > 0) && string.IsNullOrWhiteSpace(request.Reason))
                 {
                     issues.Add(new StatusChangeIssue("Reason", "A justification note is required to close a claim with open (non-zero) reserves."));
                 }
@@ -135,9 +135,4 @@ public static class ClaimStatusChangePolicy
             yield return "Loss date is outside the policy effective period.";
         }
     }
-
-    private static decimal GetApprovedBalance(ClaimReserveComponent component) =>
-        component.History
-            .Where(h => h.ApprovalStatus is ReserveApprovalStatus.Approved or ReserveApprovalStatus.AutoApproved)
-            .Sum(h => h.Amount);
 }

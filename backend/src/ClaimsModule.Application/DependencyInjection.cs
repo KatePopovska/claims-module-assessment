@@ -2,6 +2,7 @@ using System.Reflection;
 using ClaimsModule.Application.Common.Behaviours;
 using ClaimsModule.Application.Common.Interfaces;
 using ClaimsModule.Application.Common.Services;
+using ClaimsModule.Application.Reserves;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddAutoMapper(cfg => { }, assembly);
 
         services.AddScoped<IAuditLogService, AuditLogService>();
+        services.AddScoped<ReserveTransactionSubmitter>();
 
         return services;
     }
