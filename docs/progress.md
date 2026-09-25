@@ -209,8 +209,20 @@ GL job resilience checked through Hangfire itself: requeueing a succeeded job ra
 - The Hangfire enqueue happens after the database save, so a crash between the two leaves an approved transaction with `PostingStatus = Pending` and no job. There's no sweeper for that yet.
 - No rule about reserves on `Closed`/`Withdrawn` claims — the FRS doesn't define one.
 
+## 2026-09-25 — Unit Tests
+
+Two xUnit projects under `backend/tests`, added to `ClaimsModule.slnx` in a `/tests/` folder; package versions in `Directory.Packages.props` (xunit 2.9.3, xunit.runner.visualstudio 3.1.5, Microsoft.NET.Test.Sdk 17.14.1, NSubstitute 5.3.0, coverlet.collector 6.0.4). Run with `dotnet test ClaimsModule.slnx` from `backend/`.
+
+- **`ClaimsModule.Domain.UnitTests`** (130 tests, no mocks): every FRS transition and its role rules (`ClaimStatusTransitions`); `ClaimStatusChangePolicy` — critical issues, claimant, BR-C-02 acknowledgement, the Reopened→Open skip, PendingPayment's current-approved-balance rule, closure conditions, reasons, roles; `Claim` status changes, last-claimant, reserve totals and the $10M boundary, override; `ClaimReserveComponent.RecordTransaction` (type, sequence, balances, idempotency key, pending vs auto-approved); `ReserveHistory` state changes; `ReserveAuthority` thresholds at their exact boundaries, including negative amounts; every `ReserveRules` check with the FRS messages; `SequentialGuid` uniqueness and ascending SQL Server order (checked with `SqlGuid` comparison).
+- **`ClaimsModule.Application.UnitTests`** (42 tests, NSubstitute for repository/unit of work/audit/scheduler/current user): validators via FluentValidation's `TestHelper`; `ValidationBehaviour` runs validators for void commands (regression test for the MediatR 14 constraint bug — it also wouldn't compile against the old constraint); reserve handlers — auto-approval audits and enqueues the GL job only **after** the save (`Received.InOrder`), pending/over-limit submissions don't enqueue, rule failures save nothing, approve/reject/retract/override outcomes and audit values; GL posting — journal text and JSON, `Posted` + job id, idempotent no-op when already posted, key mismatch and non-approved transactions throw, failure marking; `RemoveClaimPartyCommandHandler` — last claimant, audit with party Id, idempotent inactive removal, 404.
+
+The suites were checked against deliberate bugs: raising the supervisor limit and disabling the self-approval check made 5 domain tests fail; moving the GL enqueue before the save made the ordering test fail. All reverted.
+
+Not unit-tested (need a database or HTTP): query handlers (EF projections), `UpdateClaimStatusCommandHandler` and `CreateClaimCommandHandler` (their `IApplicationDbContext` lookups), `AddClaimPartyCommandHandler` (AutoMapper), the Hangfire job wrapper, and the middleware. Their logic is covered by the domain tests and the earlier end-to-end runs; integration tests are the next layer.
+
 ## Next Steps (Not Started)
 
+- Integration tests (Testcontainers SQL Server or LocalDB + `WebApplicationFactory`) for the query handlers, status/create handlers, middleware mapping and the GL job
 - SLA monitoring job (FRS §12.2)
 - Documents: upload/list with SAS URLs (use the client-side Id approach above for `DOCUMENT_UPLOADED`'s related Id)
 - Remaining open questions in `docs/requirements.md` §9 (14 of 19 still open — the live-critical-issues question above is now resolved) don't block this — they can be resolved as the relevant feature is built, not all up front

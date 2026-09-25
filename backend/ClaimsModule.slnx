@@ -6,4 +6,8 @@
     <Project Path="src/ClaimsModule.Infrastructure/ClaimsModule.Infrastructure.csproj" />
     <Project Path="src/ClaimsModule.Persistence/ClaimsModule.Persistence.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ClaimsModule.Application.UnitTests/ClaimsModule.Application.UnitTests.csproj" />
+    <Project Path="tests/ClaimsModule.Domain.UnitTests/ClaimsModule.Domain.UnitTests.csproj" />
+  </Folder>
 </Solution>
