@@ -220,9 +220,29 @@ The suites were checked against deliberate bugs: raising the supervisor limit an
 
 Not unit-tested (need a database or HTTP): query handlers (EF projections), `UpdateClaimStatusCommandHandler` and `CreateClaimCommandHandler` (their `IApplicationDbContext` lookups), `AddClaimPartyCommandHandler` (AutoMapper), the Hangfire job wrapper, and the middleware. Their logic is covered by the domain tests and the earlier end-to-end runs; integration tests are the next layer.
 
+## 2026-09-25 (cont'd) — Backend CI
+
+`.github/workflows/backend-ci.yml`: on pull requests to `main` and pushes to `main` — checkout, .NET SDK from `backend/global.json`, NuGet cache keyed on `Directory.Packages.props` + `*.csproj`, `dotnet restore` / `build -c Release` / `test -c Release`, test results uploaded as an artifact even on failure. Read-only token, 15-minute timeout, superseded runs cancelled. `TestResults/` added to `.gitignore`. Merging is only blocked once `main` has a branch protection rule requiring the **Build and test** check (a GitHub setting, not in the repo).
+
+## 2026-09-25 (cont'd) — SLA Monitoring Job
+
+`SlaMonitoringJob` (FRS §12.2): a Hangfire recurring job, id `sla-monitoring`, cron `*/15 * * * *`, registered at startup through `IRecurringJobManager` whenever Hangfire is configured (`RecurringJobs.Register`, called from `UseApiPipeline`).
+
+- **Rule (Domain, `ClaimSla.IsBreachDue(now)`):** status `Draft` or `Open`, last touched more than 48 hours ago, and no `SLA_BREACH_DETECTED` entry within the last 24 hours. Written as an expression so the same rule is translated to SQL by EF and unit-tested in memory.
+- **Last touched = `UpdatedAt ?? CreatedAt`.** `UpdatedAt` is only set when the claim row changes, so a claim created and never edited has `UpdatedAt = NULL`; the FRS's literal `UpdatedAt < now − 48h` would never flag it.
+- **Writes:** one `SLA_BREACH_DETECTED` entry per claim with the FRS description "Claim has not been updated in 48 hours", all in a single save (`DetectSlaBreachesCommand`). Claim status and `UpdatedAt` are not touched — the job's own audit entries don't count as activity (verified).
+- **Job settings:** `[AutomaticRetry(Attempts = 0)]` (a failed run is simply retried by the next 15-minute tick, rather than piling retries on top of it) and `[DisableConcurrentExecution(600)]` (a slow run can't overlap the next one and double-log).
+- **Entries have no user or correlation Id**, since there's no HTTP request — the open question in `docs/requirements.md` §9.18.
+
+**Known gap — what counts as activity:** following the FRS literally, only changes to the `Claims` row reset the clock. Adding a party, a reserve or (later) a document doesn't update `Claims.UpdatedAt`, so a claim being actively worked through those can still be flagged. Fixing it means touching the claim's `UpdatedAt` whenever a child changes — not done, needs a decision.
+
+**Verified:**
+- 12 new domain unit tests (`ClaimSlaTests`): monitored vs unmonitored statuses, the exact 48-hour boundary, never-updated claims using `CreatedAt`, a recent update on an old claim, breach within 24h suppresses, 24h+ allows, other audit events don't suppress. All 184 tests pass.
+- End-to-end against LocalDB, triggering the recurring job from the Hangfire dashboard: the job is registered with the right cron; with five backdated claims, only the Draft never-updated for 72h and the Open claim updated 50h ago were flagged (Closed, UnderInvestigation and Open-47h weren't); an immediate second run added nothing; after moving one breach entry back 25 hours, the next run added exactly one new entry for that claim only.
+
 ## Next Steps (Not Started)
 
 - Integration tests (Testcontainers SQL Server or LocalDB + `WebApplicationFactory`) for the query handlers, status/create handlers, middleware mapping and the GL job
-- SLA monitoring job (FRS §12.2)
+- Decide what counts as claim activity for the SLA job (see the known gap above)
 - Documents: upload/list with SAS URLs (use the client-side Id approach above for `DOCUMENT_UPLOADED`'s related Id)
 - Remaining open questions in `docs/requirements.md` §9 (14 of 19 still open — the live-critical-issues question above is now resolved) don't block this — they can be resolved as the relevant feature is built, not all up front
