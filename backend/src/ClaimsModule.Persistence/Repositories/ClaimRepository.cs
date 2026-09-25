@@ -25,4 +25,9 @@ public class ClaimRepository(IApplicationDbContext context) : IClaimRepository
         context.Claims
             .Include(c => c.ReserveComponents).ThenInclude(rc => rc.History)
             .FirstOrDefaultAsync(c => c.Id == claimId, cancellationToken);
+
+    public Task<Claim?> GetWithDocumentsAsync(Guid claimId, CancellationToken cancellationToken = default) =>
+        context.Claims
+            .Include(c => c.Documents)
+            .FirstOrDefaultAsync(c => c.Id == claimId, cancellationToken);
 }

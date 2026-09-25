@@ -51,6 +51,7 @@ internal static class TestData
         var repository = Substitute.For<IClaimRepository>();
         repository.GetWithReservesAsync(claim.Id, Arg.Any<CancellationToken>()).Returns(claim);
         repository.GetWithPartiesAsync(claim.Id, Arg.Any<CancellationToken>()).Returns(claim);
+        repository.GetWithDocumentsAsync(claim.Id, Arg.Any<CancellationToken>()).Returns(claim);
         return repository;
     }
 }
