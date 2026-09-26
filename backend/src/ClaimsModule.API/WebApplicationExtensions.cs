@@ -28,6 +28,8 @@ public static class WebApplicationExtensions
         app.UseAuthentication();
         app.UseAuthorization();
 
+        app.UseMiddleware<IdempotencyMiddleware>();
+
         if (app.Configuration.IsHangfireConfigured())
         {
             app.UseHangfireDashboard();

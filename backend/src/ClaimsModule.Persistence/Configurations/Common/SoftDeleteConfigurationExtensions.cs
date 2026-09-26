@@ -15,7 +15,5 @@ public static class SoftDeleteConfigurationExtensions
 
         builder.Property(e => e.DeletedAt)
             .HasPrecision(7);
-
-        builder.HasQueryFilter(e => !e.IsDeleted);
     }
 }

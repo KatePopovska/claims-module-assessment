@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
 using ClaimsModule.API.Auth;
+using ClaimsModule.API.Middleware;
+using ClaimsModule.API.Swagger;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication;
@@ -33,7 +35,8 @@ public static class DependencyInjection
             options.AddPolicy(FrontendCorsPolicy, policy =>
                 policy.WithOrigins(allowedOrigins)
                       .AllowAnyHeader()
-                      .AllowAnyMethod());
+                      .AllowAnyMethod()
+                      .WithExposedHeaders(IdempotencyMiddleware.ReplayedHeaderName));
         });
 
         services.AddHangfireIfConfigured(configuration);
@@ -59,6 +62,8 @@ public static class DependencyInjection
             };
             options.AddSecurityDefinition("Bearer", bearerScheme);
             options.AddSecurityRequirement(new OpenApiSecurityRequirement { { bearerScheme, [] } });
+
+            options.OperationFilter<IdempotencyKeyHeaderFilter>();
         });
 
         return services;
