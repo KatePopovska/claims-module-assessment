@@ -2,7 +2,6 @@ using ClaimsModule.Application.Common.Extensions;
 using ClaimsModule.Application.Common.Interfaces;
 using ClaimsModule.Application.Reserves;
 using ClaimsModule.Domain.Claims;
-using ClaimsModule.Domain.Enums;
 using ClaimsModule.Domain.Reference;
 using ClaimsModule.Domain.Reserves;
 using MediatR;
@@ -15,7 +14,6 @@ public class CreateClaimCommandHandler(
     IClaimRepository claimRepository,
     IUnitOfWork unitOfWork,
     IClaimNumberGenerator claimNumberGenerator,
-    IAuditLogService auditLogService,
     ICurrentUserService currentUserService,
     ReserveTransactionSubmitter reserveSubmitter,
     TimeProvider timeProvider) : IRequestHandler<CreateClaimCommand, ClaimCreatedDto>
@@ -43,7 +41,6 @@ public class CreateClaimCommandHandler(
             try
             {
                 claimRepository.Add(claim);
-                auditLogService.Log(claim, AuditEventType.CLAIM_CREATED, $"Claim {claimNumber} created via FNOL intake.");
                 await unitOfWork.SaveChangesAsync(cancellationToken);
 
                 if (request.InitialReserve is { } reserve)
@@ -75,25 +72,19 @@ public class CreateClaimCommandHandler(
 
     private Claim BuildClaim(CreateClaimCommand request, string claimNumber, Policy? policy)
     {
-        var claim = new Claim
+        var now = timeProvider.GetUtcNow();
+
+        var claim = Claim.Report(claimNumber, policy, currentUserService.UserId, now);
+
+        claim.LossEvent = new LossEvent
         {
-            ClaimNumber = claimNumber,
-            PolicyId = policy?.Id,
-            PolicyNumber = policy?.PolicyNumber,
-            ClientName = policy?.ClientName,
-            Status = ClaimStatus.Draft,
-            ReportedDate = timeProvider.GetUtcNow(),
-            AssignedHandlerId = currentUserService.UserId,
-            LossEvent = new LossEvent
-            {
-                LossDate = request.LossDate,
-                LossDescription = request.LossDescription,
-                LossLocation = request.LossLocation,
-                CauseOfLossCode = request.CauseOfLossCode,
-                EstimatedLossAmount = request.EstimatedLossAmount,
-                ReportDate = timeProvider.GetUtcNow(),
-                PoliceReportNumber = request.PoliceReportNumber
-            }
+            LossDate = request.LossDate,
+            LossDescription = request.LossDescription,
+            LossLocation = request.LossLocation,
+            CauseOfLossCode = request.CauseOfLossCode,
+            EstimatedLossAmount = request.EstimatedLossAmount,
+            ReportDate = now,
+            PoliceReportNumber = request.PoliceReportNumber
         };
 
         foreach (var party in request.Parties)

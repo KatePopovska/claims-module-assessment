@@ -1,4 +1,5 @@
 using ClaimsModule.Domain.Audit;
+using ClaimsModule.Domain.Claims.Events;
 using ClaimsModule.Domain.Common;
 using ClaimsModule.Domain.Enums;
 using ClaimsModule.Domain.Documents;
@@ -42,6 +43,24 @@ public class Claim : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken
     public ICollection<ClaimReserveComponent> ReserveComponents { get; set; } = [];
     public ICollection<ClaimDocument> Documents { get; set; } = [];
     public ICollection<ClaimAuditLog> AuditLogEntries { get; set; } = [];
+
+    public static Claim Report(string claimNumber, Policy? policy, Guid? assignedHandlerId, DateTimeOffset reportedAt)
+    {
+        var claim = new Claim
+        {
+            ClaimNumber = claimNumber,
+            PolicyId = policy?.Id,
+            PolicyNumber = policy?.PolicyNumber,
+            ClientName = policy?.ClientName,
+            Status = ClaimStatus.Draft,
+            ReportedDate = reportedAt,
+            AssignedHandlerId = assignedHandlerId
+        };
+
+        claim.AddDomainEvent(new ClaimCreatedEvent(claim, reportedAt));
+
+        return claim;
+    }
 
     public ClaimReserveComponent OpenReserveComponent(ReserveComponentType componentType)
     {
@@ -99,7 +118,7 @@ public class Claim : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken
         party is { IsActive: true, PartyRole: PartyRole.Claimant }
         && Parties.Count(p => p.IsActive && p.PartyRole == PartyRole.Claimant) == 1;
 
-    public IReadOnlyList<StatusChange> ChangeStatus(ClaimStatus targetStatus, string? reason, DateTimeOffset now)
+    public IReadOnlyList<StatusChange> ChangeStatus(ClaimStatus targetStatus, string? reason, DateTimeOffset now, IReadOnlyList<string>? acknowledgedWarnings = null)
     {
         if (!ClaimStatusTransitions.IsValid(Status, targetStatus))
         {
@@ -122,6 +141,13 @@ public class Claim : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken
                 changes.Add(new StatusChange(ClaimStatus.Reopened, ClaimStatus.Open, IsAutomatic: true));
                 Status = ClaimStatus.Open;
                 break;
+        }
+
+        foreach (var change in changes)
+        {
+            AddDomainEvent(change.IsAutomatic
+                ? new ClaimStatusChangedEvent(this, change.From, change.To, IsAutomatic: true, Reason: null, AcknowledgedWarnings: [], now)
+                : new ClaimStatusChangedEvent(this, change.From, change.To, IsAutomatic: false, reason, acknowledgedWarnings ?? [], now));
         }
 
         return changes;
