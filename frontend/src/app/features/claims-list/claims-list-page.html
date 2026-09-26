@@ -1,0 +1,162 @@
+<app-page-header title="Claims" subtitle="Review, filter and manage First Notice of Loss claims.">
+  <a headerActions mat-flat-button class="app-pill-button" routerLink="/claims/new">
+    <mat-icon>add</mat-icon>
+    Log New Claim
+  </a>
+</app-page-header>
+
+<section class="app-card filters" aria-label="Claim filters">
+  <div class="filters-header">
+    <span class="app-overline filters-title"><mat-icon>filter_list</mat-icon>Advanced filtering</span>
+    <button mat-button type="button" (click)="clearFilters()" [disabled]="!hasActiveFilters(query())">Clear All</button>
+  </div>
+
+  <form class="filters-grid" [formGroup]="filters">
+    <mat-form-field>
+      <mat-label>Claim no. or client</mat-label>
+      <input matInput formControlName="search" placeholder="CLM-2026-… or client name" />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Claim status</mat-label>
+      <mat-select formControlName="status" multiple placeholder="All statuses">
+        @for (status of statuses; track status) {
+          <mat-option [value]="status">{{ statusLabel(status) }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Loss date</mat-label>
+      <mat-date-range-input [rangePicker]="lossDatePicker">
+        <input matStartDate formControlName="dateFrom" placeholder="From" />
+        <input matEndDate formControlName="dateTo" placeholder="To" />
+      </mat-date-range-input>
+      <mat-datepicker-toggle matIconSuffix [for]="lossDatePicker" />
+      <mat-date-range-picker #lossDatePicker />
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Handler</mat-label>
+      <mat-select formControlName="assignedHandlerId">
+        <mat-option value="">All handlers</mat-option>
+        @for (user of handlers; track user.id) {
+          <mat-option [value]="user.id">{{ user.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Cause of loss</mat-label>
+      <mat-select formControlName="causeOfLossCode">
+        <mat-option value="">All causes</mat-option>
+        @for (cause of causeOfLossCodes(); track cause.code) {
+          <mat-option [value]="cause.code">{{ cause.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </form>
+</section>
+
+<section class="app-card table-card" aria-label="Claims">
+  <div class="table-toolbar">
+    <h2>Claim register</h2>
+    @if (result(); as page) {
+      <span class="app-muted">Showing {{ rangeStart(page) }}–{{ rangeEnd(page) }} of {{ page.totalCount }} claims</span>
+    }
+  </div>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (loadFailed()) {
+    <div class="state">
+      <mat-icon>cloud_off</mat-icon>
+      <h3>Claims could not be loaded</h3>
+      <p class="app-muted">Check your connection and try again.</p>
+      <button mat-stroked-button type="button" (click)="retry()">Retry</button>
+    </div>
+  } @else if (result(); as page) {
+    @if (page.items.length === 0) {
+      <div class="state">
+        <mat-icon>inbox</mat-icon>
+        @if (hasActiveFilters(query())) {
+          <h3>No claims match your filters</h3>
+          <p class="app-muted">Adjust or clear the filters to see more claims.</p>
+          <button mat-stroked-button type="button" (click)="clearFilters()">Clear filters</button>
+        } @else {
+          <h3>No claims yet</h3>
+          <p class="app-muted">Claims logged through FNOL intake appear here.</p>
+          <a mat-flat-button routerLink="/claims/new">Log New Claim</a>
+        }
+      </div>
+    } @else {
+      <table mat-table [dataSource]="page.items" [class.is-loading]="loading()">
+        <ng-container matColumnDef="claimNumber">
+          <th mat-header-cell *matHeaderCellDef>Claim number</th>
+          <td mat-cell *matCellDef="let claim">
+            <a class="claim-link" [routerLink]="['/claims', claim.id]" (click)="$event.stopPropagation()">{{ claim.claimNumber }}</a>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="policyNumber">
+          <th mat-header-cell *matHeaderCellDef>Policy number</th>
+          <td mat-cell *matCellDef="let claim">{{ claim.policyNumber ?? 'Unknown policy' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="clientName">
+          <th mat-header-cell *matHeaderCellDef>Client</th>
+          <td mat-cell *matCellDef="let claim">
+            <span class="client">
+              <span class="avatar">{{ initials(claim.clientName) }}</span>
+              {{ claim.clientName ?? '—' }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="lossDate">
+          <th mat-header-cell *matHeaderCellDef>Loss date</th>
+          <td mat-cell *matCellDef="let claim">{{ claim.lossDate ? (claim.lossDate | date: 'MMM d, y') : '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="causeOfLoss">
+          <th mat-header-cell *matHeaderCellDef>Cause of loss</th>
+          <td mat-cell *matCellDef="let claim">{{ claim.causeOfLossName ?? claim.causeOfLossCode ?? '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let claim"><app-status-badge [status]="claim.status" /></td>
+        </ng-container>
+
+        <ng-container matColumnDef="totalReserves">
+          <th mat-header-cell *matHeaderCellDef class="numeric">Total reserve</th>
+          <td mat-cell *matCellDef="let claim" class="numeric amount">{{ claim.totalReserves | currency: 'USD' }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let claim; columns: columns"
+          class="claim-row"
+          tabindex="0"
+          (click)="openClaim(claim)"
+          (keydown.enter)="openClaim(claim)"
+        ></tr>
+      </table>
+    }
+
+    <mat-paginator
+      [length]="page.totalCount"
+      [pageIndex]="page.page - 1"
+      [pageSize]="page.pageSize"
+      [pageSizeOptions]="pageSizeOptions"
+      [disabled]="loading()"
+      showFirstLastButtons
+      (page)="onPage($event)"
+      aria-label="Select page of claims"
+    />
+  }
+</section>

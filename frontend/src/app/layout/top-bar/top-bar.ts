@@ -22,7 +22,8 @@ export class TopBar {
 
   protected submitSearch(): void {
     const term = this.search.value.trim();
-    this.router.navigate(['/claims'], { queryParams: { search: term || null } });
+    this.router.navigate(['/claims'], { queryParams: { search: term || null, page: null }, queryParamsHandling: 'merge' });
+    this.search.setValue('');
   }
 
   protected switchUser(userId: string): void {
