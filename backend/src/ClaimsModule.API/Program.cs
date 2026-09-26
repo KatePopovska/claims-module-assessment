@@ -6,7 +6,7 @@ using ClaimsModule.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplicationServices();
-builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddInfrastructureServices(builder.Configuration, builder.Environment);
 builder.Services.AddPersistenceServices(builder.Configuration);
 builder.Services.AddApiServices(builder.Configuration);
 

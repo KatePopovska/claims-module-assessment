@@ -1,0 +1,71 @@
+name: IaC CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'iac/**'
+      - '.github/workflows/iac-cd.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy infrastructure
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      SQL_ENTRA_ADMIN_OBJECT_ID: ${{ vars.SQL_ENTRA_ADMIN_OBJECT_ID }}
+      SQL_ENTRA_ADMIN_LOGIN: ${{ vars.SQL_ENTRA_ADMIN_LOGIN }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Show target Azure account
+        run: az account show -o table
+
+      - name: Install Bicep
+        run: az bicep install
+
+      - name: Build and lint templates
+        run: |
+          az bicep build --file iac/main.bicep --stdout > /dev/null
+          az bicep lint --file iac/main.bicep
+
+      - name: Preview changes (what-if)
+        run: |
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file iac/main.bicep \
+            --parameters iac/main.bicepparam
+
+      - name: Deploy infrastructure
+        run: |
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "iac-${GITHUB_RUN_NUMBER}" \
+            --template-file iac/main.bicep \
+            --parameters iac/main.bicepparam \
+            --query properties.outputs \
+            --output json

@@ -13,13 +13,10 @@ public static class WebApplicationExtensions
     {
         app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
+        app.UseSwagger();
+        app.UseSwaggerUI();
 
-        app.UseCors(DependencyInjection.AngularDevCorsPolicy);
+        app.UseCors(DependencyInjection.FrontendCorsPolicy);
 
         app.UseHttpsRedirection();
 
