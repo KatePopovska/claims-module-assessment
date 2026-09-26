@@ -1,11 +1,16 @@
 using ClaimsModule.Application.Claims.Commands.AddClaimParty;
+using ClaimsModule.Application.Claims.Commands.CreateClaim;
+using ClaimsModule.Application.Claims.Commands.UpdateClaimNotes;
 using ClaimsModule.Application.Claims.Commands.UpdateClaimStatus;
 using ClaimsModule.Application.Claims.Queries.ListClaims;
 using ClaimsModule.Application.Reserves.Commands.CreateReserve;
 using ClaimsModule.Application.Reserves.Commands.RejectReserve;
+using ClaimsModule.Application.Common.Interfaces;
 using ClaimsModule.Application.Reserves.Commands.SetReserveLimitOverride;
 using ClaimsModule.Domain.Enums;
+using ClaimsModule.Domain.Reference;
 using FluentValidation.TestHelper;
+using NSubstitute;
 
 namespace ClaimsModule.Application.UnitTests.Validators;
 
@@ -88,6 +93,28 @@ public class ValidatorTests
         var result = new CreateReserveCommandValidator().TestValidate(new CreateReserveCommand(Guid.NewGuid(), (ReserveComponentType)99, 100, null));
 
         result.ShouldHaveValidationErrorFor(c => c.Component).WithErrorMessage("Invalid reserve component type.");
+    }
+
+    [Fact]
+    public async Task CreateClaim_InitialReserveWithoutPolicy_IsInvalid()
+    {
+        var context = Substitute.For<IApplicationDbContext>();
+        context.CauseOfLossCodes.Returns(AsyncQueryable.DbSetOf<CauseOfLossCode>());
+        var validator = new CreateClaimCommandValidator(context, new FixedTimeProvider(TestData.Now));
+        var command = new CreateClaimCommand(null, TestData.Now.AddDays(-1), "Water leak damaged the kitchen floor.", null, "WATER", null, null, [], [], new CreateClaimInitialReserveDto(ReserveComponentType.Indemnity, 5000, null));
+
+        var result = await validator.TestValidateAsync(command);
+
+        result.ShouldHaveValidationErrorFor(c => c.PolicyId).WithErrorMessage("No policy linked. Policy must be associated before reserves can be set.");
+    }
+
+    [Fact]
+    public void UpdateClaimNotes_LongerThan4000_IsInvalid()
+    {
+        var validator = new UpdateClaimNotesCommandValidator();
+
+        validator.TestValidate(new UpdateClaimNotesCommand(Guid.NewGuid(), new string('x', 4001))).ShouldHaveValidationErrorFor(c => c.Notes);
+        validator.TestValidate(new UpdateClaimNotesCommand(Guid.NewGuid(), null)).ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]

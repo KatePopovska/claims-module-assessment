@@ -52,5 +52,13 @@ public class CreateClaimCommandValidator : AbstractValidator<CreateClaimCommand>
             riskObject.RuleFor(r => r.AssetType).IsInEnum();
             riskObject.RuleFor(r => r.AssetDescription).NotEmpty().WithMessage("Asset description is required.");
         });
+
+        When(c => c.InitialReserve is not null, () =>
+        {
+            RuleFor(c => c.PolicyId).NotNull().WithMessage("No policy linked. Policy must be associated before reserves can be set.");
+            RuleFor(c => c.InitialReserve!.Component).IsInEnum().WithMessage("Invalid reserve component type.");
+            RuleFor(c => c.InitialReserve!.Amount).PrecisionScale(19, 4, true);
+            RuleFor(c => c.InitialReserve!.ChangeReason).MaximumLength(1000);
+        });
     }
 }

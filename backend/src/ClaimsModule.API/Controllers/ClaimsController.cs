@@ -1,6 +1,7 @@
 using ClaimsModule.Application.Claims.Commands.AddClaimParty;
 using ClaimsModule.Application.Claims.Commands.CreateClaim;
 using ClaimsModule.Application.Claims.Commands.RemoveClaimParty;
+using ClaimsModule.Application.Claims.Commands.UpdateClaimNotes;
 using ClaimsModule.Application.Claims.Commands.UpdateClaimStatus;
 using ClaimsModule.Application.Claims.Queries.GetClaimAuditLog;
 using ClaimsModule.Application.Claims.Queries.GetClaimDetail;
@@ -53,6 +54,13 @@ public class ClaimsController(ISender sender) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("{id:guid}/notes")]
+    public async Task<IActionResult> UpdateNotes(Guid id, UpdateClaimNotesRequest request, CancellationToken cancellationToken)
+    {
+        await sender.Send(new UpdateClaimNotesCommand(id, request.Notes), cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("{id:guid}/parties")]
     public async Task<IActionResult> AddParty(Guid id, AddClaimPartyRequest request, CancellationToken cancellationToken)
     {
@@ -68,6 +76,8 @@ public class ClaimsController(ISender sender) : ControllerBase
         return NoContent();
     }
 }
+
+public record UpdateClaimNotesRequest(string? Notes);
 
 public record UpdateClaimStatusRequest(ClaimStatus TargetStatus, string? Reason, bool AcknowledgeWarnings = false);
 
