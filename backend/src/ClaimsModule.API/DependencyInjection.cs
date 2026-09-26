@@ -1,14 +1,16 @@
 using System.Text.Json.Serialization;
 using ClaimsModule.API.Auth;
 using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Data.SqlClient;
 using Microsoft.OpenApi.Models;
 
 namespace ClaimsModule.API;
 
 public static class DependencyInjection
 {
-    public const string AngularDevCorsPolicy = "AngularDev";
+    public const string FrontendCorsPolicy = "Frontend";
 
     public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -24,10 +26,12 @@ public static class DependencyInjection
         services.AddEndpointsApiExplorer();
         services.AddApiSwaggerGen();
 
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
         services.AddCors(options =>
         {
-            options.AddPolicy(AngularDevCorsPolicy, policy =>
-                policy.WithOrigins("http://localhost:4200")
+            options.AddPolicy(FrontendCorsPolicy, policy =>
+                policy.WithOrigins(allowedOrigins)
                       .AllowAnyHeader()
                       .AllowAnyMethod());
         });
@@ -73,7 +77,7 @@ public static class DependencyInjection
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UseSqlServerStorage(connectionString));
+            .UseSqlServerStorage(connectionString, new SqlServerStorageOptions { SqlClientFactory = SqlClientFactory.Instance }));
         services.AddHangfireServer();
 
         return services;

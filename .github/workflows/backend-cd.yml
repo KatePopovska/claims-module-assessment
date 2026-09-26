@@ -1,0 +1,193 @@
+name: Backend CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-cd.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-production
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Build, test and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: backend/global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('backend/Directory.Packages.props', 'backend/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        run: dotnet restore ClaimsModule.slnx
+
+      - name: Build
+        run: dotnet build ClaimsModule.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test ClaimsModule.slnx --configuration Release --no-build --logger trx --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: backend/TestResults/*.trx
+          if-no-files-found: ignore
+
+      - name: Publish API
+        run: |
+          dotnet publish src/ClaimsModule.API --configuration Release --no-build --output "$RUNNER_TEMP/api"
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          (cd "$RUNNER_TEMP/api" && zip -qr "$GITHUB_WORKSPACE/artifacts/api.zip" .)
+
+      - name: Build EF Core migrations bundle
+        run: |
+          dotnet tool install --global dotnet-ef --version 9.0.20
+          dotnet restore src/ClaimsModule.API --runtime linux-x64
+          dotnet ef migrations bundle \
+            --project src/ClaimsModule.Persistence \
+            --startup-project src/ClaimsModule.API \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained \
+            --output "$GITHUB_WORKSPACE/artifacts/efbundle" \
+            --force
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-deployment
+          path: |
+            artifacts/api.zip
+            artifacts/efbundle
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Migrate database and deploy API
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ steps.resources.outputs.apiUrl }}/swagger
+
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      WEB_APP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+      SQL_SERVER_NAME: ${{ vars.AZURE_SQL_SERVER_NAME }}
+      SQL_DATABASE_NAME: ${{ vars.AZURE_SQL_DATABASE_NAME }}
+
+    steps:
+      - name: Download deployment artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-deployment
+          path: artifacts
+
+      - name: Sign in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Show target Azure account
+        run: az account show -o table
+
+      - name: Resolve configured Azure resources
+        id: resources
+        run: |
+          sql_fqdn=$(az sql server show --resource-group "$RESOURCE_GROUP" --name "$SQL_SERVER_NAME" --query fullyQualifiedDomainName -o tsv)
+          az sql db show --resource-group "$RESOURCE_GROUP" --server "$SQL_SERVER_NAME" --name "$SQL_DATABASE_NAME" --query name -o tsv > /dev/null
+          api_host=$(az webapp show --resource-group "$RESOURCE_GROUP" --name "$WEB_APP_NAME" --query defaultHostName -o tsv)
+          {
+            echo "sqlFqdn=$sql_fqdn"
+            echo "apiUrl=https://$api_host"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open SQL firewall for this runner
+        id: firewall
+        run: |
+          runner_ip=$(curl -fsS --max-time 10 https://api.ipify.org || curl -fsS --max-time 10 https://ifconfig.me)
+          rule_name="github-runner-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          az sql server firewall-rule create \
+            --resource-group "$RESOURCE_GROUP" --server "$SQL_SERVER_NAME" \
+            --name "$rule_name" --start-ip-address "$runner_ip" --end-ip-address "$runner_ip" \
+            --output none
+          echo "ruleName=$rule_name" >> "$GITHUB_OUTPUT"
+
+      - name: Apply database migrations
+        env:
+          SQL_CONNECTION: "Server=tcp:${{ steps.resources.outputs.sqlFqdn }},1433;Database=${{ env.SQL_DATABASE_NAME }};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+        run: |
+          chmod +x artifacts/efbundle
+          for attempt in 1 2 3 4 5; do
+            if artifacts/efbundle --connection "$SQL_CONNECTION"; then
+              exit 0
+            fi
+            echo "Migration attempt $attempt failed; waiting for the firewall rule to take effect..."
+            sleep 20
+          done
+          exit 1
+
+      - name: Remove temporary SQL firewall rule
+        if: always() && steps.firewall.outputs.ruleName != ''
+        run: |
+          az sql server firewall-rule delete \
+            --resource-group "$RESOURCE_GROUP" --server "$SQL_SERVER_NAME" \
+            --name "${{ steps.firewall.outputs.ruleName }}" --output none
+
+      - name: Deploy API
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEB_APP_NAME }}
+          package: artifacts/api.zip
+
+      - name: Smoke test
+        env:
+          API_URL: ${{ steps.resources.outputs.apiUrl }}
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS "$API_URL/api/health" > /dev/null; then
+              curl -fsS "$API_URL/swagger/v1/swagger.json" > /dev/null
+              echo "API is healthy: $API_URL"
+              exit 0
+            fi
+            echo "Waiting for the API to start ($attempt/30)..."
+            sleep 10
+          done
+          echo "::error::API did not become healthy at $API_URL"
+          exit 1

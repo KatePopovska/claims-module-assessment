@@ -1,0 +1,49 @@
+name: IaC CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'iac/**'
+      - '.github/workflows/iac-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'iac/**'
+      - '.github/workflows/iac-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Bicep
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: iac
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Bicep
+        run: az bicep install
+
+      - name: Build templates
+        run: az bicep build --file main.bicep --stdout > /dev/null
+
+      - name: Lint templates
+        run: az bicep lint --file main.bicep
+
+      - name: Build parameters
+        env:
+          SQL_ENTRA_ADMIN_OBJECT_ID: 00000000-0000-0000-0000-000000000000
+          SQL_ENTRA_ADMIN_LOGIN: ci-validation-placeholder
+        run: az bicep build-params --file main.bicepparam --stdout > /dev/null
