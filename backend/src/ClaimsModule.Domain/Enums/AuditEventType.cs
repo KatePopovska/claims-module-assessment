@@ -3,6 +3,7 @@ namespace ClaimsModule.Domain.Enums;
 public enum AuditEventType
 {
     CLAIM_CREATED,
+    CLAIM_NOTES_UPDATED,
     STATUS_CHANGED,
     PARTY_ADDED,
     PARTY_REMOVED,
