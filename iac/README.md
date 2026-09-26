@@ -149,15 +149,18 @@ az ad group member add --group sql-claims-admins --member-id $spId
 
 | Variable | Used by | Value |
 |---|---|---|
-| `AZURE_CLIENT_ID` | iac-cd, backend-cd | printed by step 1 |
-| `AZURE_TENANT_ID` | iac-cd, backend-cd | printed by step 1 |
-| `AZURE_SUBSCRIPTION_ID` | iac-cd, backend-cd | printed by step 1 |
-| `AZURE_RESOURCE_GROUP` | iac-cd, backend-cd | the resource group name |
+| `AZURE_CLIENT_ID` | iac-cd, backend-cd, frontend-cd | printed by step 1 |
+| `AZURE_TENANT_ID` | iac-cd, backend-cd, frontend-cd | printed by step 1 |
+| `AZURE_SUBSCRIPTION_ID` | iac-cd, backend-cd, frontend-cd | printed by step 1 |
+| `AZURE_RESOURCE_GROUP` | iac-cd, backend-cd, frontend-cd | the resource group name |
 | `SQL_ENTRA_ADMIN_OBJECT_ID` | iac-cd | object id of the Entra SQL admin group |
 | `SQL_ENTRA_ADMIN_LOGIN` | iac-cd | name of that group |
 | `AZURE_WEBAPP_NAME` | backend-cd | deployment output `webAppName` |
 | `AZURE_SQL_SERVER_NAME` | backend-cd | deployment output `sqlServerName` (the short name, not the FQDN) |
 | `AZURE_SQL_DATABASE_NAME` | backend-cd | deployment output `sqlDatabaseName` |
+| `AZURE_STATIC_WEB_APP_NAME` | frontend-cd | deployment output `staticWebAppName` |
+
+The Static Web App deployment token is not stored in GitHub: frontend-cd signs in through OIDC and reads it at deploy time with `az staticwebapp secrets list` (allowed by the identity's Contributor role), masking it in the log.
 
 Regions, SKUs and the admin principal type are not variables: they live in `main.bicepparam`. The three resource names are explicit so the backend deployment always targets exactly these resources, even if more are added to the resource group later; if a name is wrong, the workflow fails at *Resolve configured Azure resources* before touching anything. Update them if the resources are ever recreated under new names.
 

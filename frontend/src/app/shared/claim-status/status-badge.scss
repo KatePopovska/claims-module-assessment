@@ -1,0 +1,45 @@
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-Draft {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.status-Open {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-UnderInvestigation {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.status-PendingPayment {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.status-Closed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-Reopened {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.status-Withdrawn {
+  background: #475569;
+  color: #ffffff;
+}
