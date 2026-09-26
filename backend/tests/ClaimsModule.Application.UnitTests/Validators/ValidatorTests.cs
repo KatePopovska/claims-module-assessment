@@ -99,7 +99,8 @@ public class ValidatorTests
     public async Task CreateClaim_InitialReserveWithoutPolicy_IsInvalid()
     {
         var context = Substitute.For<IApplicationDbContext>();
-        context.CauseOfLossCodes.Returns(AsyncQueryable.DbSetOf<CauseOfLossCode>());
+        var causeOfLossCodes = AsyncQueryable.DbSetOf<CauseOfLossCode>();
+        context.CauseOfLossCodes.Returns(causeOfLossCodes);
         var validator = new CreateClaimCommandValidator(context, new FixedTimeProvider(TestData.Now));
         var command = new CreateClaimCommand(null, TestData.Now.AddDays(-1), "Water leak damaged the kitchen floor.", null, "WATER", null, null, [], [], new CreateClaimInitialReserveDto(ReserveComponentType.Indemnity, 5000, null));
 

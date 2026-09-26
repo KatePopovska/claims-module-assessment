@@ -28,7 +28,8 @@ public class CreateClaimCommandHandlerTests
 
     public CreateClaimCommandHandlerTests()
     {
-        _context.Policies.Returns(AsyncQueryable.DbSetOf(new Policy { Id = PolicyId, PolicyNumber = "POL-1", ClientName = "Acme" }));
+        var policies = AsyncQueryable.DbSetOf(new Policy { Id = PolicyId, PolicyNumber = "POL-1", ClientName = "Acme" });
+        _context.Policies.Returns(policies);
         _claimNumbers.GenerateAsync(Arg.Any<CancellationToken>()).Returns("CLM-2026-0000042");
         _unitOfWork.BeginTransactionAsync(Arg.Any<CancellationToken>()).Returns(_transaction);
         _repository.When(r => r.Add(Arg.Any<Claim>())).Do(call => _addedClaim = call.Arg<Claim>());
