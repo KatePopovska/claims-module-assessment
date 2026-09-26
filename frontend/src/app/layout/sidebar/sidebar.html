@@ -1,0 +1,24 @@
+<aside class="sidebar">
+  <a class="brand" routerLink="/claims">
+    <span class="brand-logo"><mat-icon>shield</mat-icon></span>
+    <span class="brand-text">
+      <span class="brand-name">Claims Portal</span>
+      <span class="brand-subtitle">Admin Console</span>
+    </span>
+  </a>
+
+  <nav class="nav" aria-label="Main navigation">
+    @for (item of navItems; track item.link) {
+      <a
+        class="nav-item"
+        [routerLink]="item.link"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: item.exact }"
+        ariaCurrentWhenActive="page"
+      >
+        <mat-icon>{{ item.icon }}</mat-icon>
+        <span>{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+</aside>

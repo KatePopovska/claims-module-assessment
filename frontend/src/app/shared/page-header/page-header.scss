@@ -1,0 +1,49 @@
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--app-text-muted);
+
+  a {
+    color: var(--app-text-muted);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--app-navy);
+    }
+  }
+
+  .current {
+    color: var(--app-navy);
+    font-weight: 600;
+  }
+}
+
+h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--app-navy);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: var(--app-text-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

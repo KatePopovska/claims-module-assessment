@@ -25,3 +25,6 @@ appsettings.*.local.json
 
 # --- Docs source (original DOCX specs, not tracked) ---
 docs/source/
+
+# --- UI design references (not tracked) ---
+ui-examples/

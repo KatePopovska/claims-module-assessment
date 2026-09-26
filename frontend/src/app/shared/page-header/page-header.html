@@ -1,0 +1,25 @@
+<div class="page-header">
+  <div class="heading">
+    @if (breadcrumbs().length > 0) {
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        @for (crumb of breadcrumbs(); track crumb.label; let last = $last) {
+          @if (crumb.link && !last) {
+            <a [routerLink]="crumb.link">{{ crumb.label }}</a>
+            <span class="separator">›</span>
+          } @else {
+            <span [class.current]="last">{{ crumb.label }}</span>
+          }
+        }
+      </nav>
+    }
+    <h1>{{ title() }}</h1>
+    @if (subtitle()) {
+      <p class="subtitle">{{ subtitle() }}</p>
+    }
+    <ng-content select="[headerMeta]" />
+  </div>
+
+  <div class="actions">
+    <ng-content select="[headerActions]" />
+  </div>
+</div>
