@@ -53,8 +53,9 @@ Source: FRS §10 (authoritative endpoint list and behavior), cross-checked again
 | `/api/reference/cause-of-loss-codes` | GET | List active cause-of-loss codes. Optional filter `?perilCategory={category}`. |
 | `/api/reference/claim-statuses` | GET | List all claim status values with valid next-status transitions. |
 | `/api/policies/search` | GET | Search simulated policies. Query param `q` (policy number or client name). Returns matching policies incl. effectiveDate, expirationDate, status, coverageTypes. |
+| `/api/policies/{id}/coverage` | GET | Coverage of one policy for the FNOL Step 1 display (Assessment §3.3.2, FRS §5.2). Returns `{ policyId, policyNumber, status, effectiveDate, expirationDate, coverageTypes: string[] }`. `404` if the policy doesn't exist. |
 
-> **Note (open question, see requirements.md §9.5):** Assessment §3.3.2 additionally requests `GET /api/policies/{id}/coverage`. The FRS treats coverage as seed-only reference data returned as part of policy search results (FRS §5.5) and explicitly marks "Coverage Evaluation" out of scope (FRS §2). No dedicated coverage endpoint is defined in the FRS. Not included in this contract pending clarification of whether it's needed for the Step-1 "available coverage types" display (FRS §5.2), which may just reuse the `coverageTypes` field already returned by policy search.
+> **Resolved (requirements.md §9.5):** `GET /api/policies/{id}/coverage` (Assessment §3.3.2) is implemented as a read of the seeded `CoverageTypes` for the FNOL Step 1 "available coverage types" display (FRS §5.2). It performs no coverage evaluation, which FRS §2 keeps out of scope.
 
 ## 4. Error Response Structure (FRS §10.4)
 
@@ -76,9 +77,24 @@ All error responses follow this shape:
 
 - Authentication: Bearer token (JWT); mock/simulated auth service acceptable (FRS §3, Assessment §3.7.4)
 - Authorization: reserve approval endpoints must validate caller role server-side (FRS §3) — not just hide UI controls
-- Idempotency: write endpoints support an `Idempotency-Key` request header (FRS §10 intro)
+- Idempotency: write endpoints support an `Idempotency-Key` request header (FRS §10 intro) — see §5a
 - All endpoints are RESTful JSON; kebab-case plural route nouns (FRS §15.3)
 - No endpoint proxies document bytes — document retrieval always returns a SAS/local URL, never streams the file through the API (FRS BR-D-02)
+
+## 5a. Idempotency-Key
+
+Applies to `POST`, `PUT`, `PATCH`, `DELETE` when the `Idempotency-Key` header is sent (1–200 characters); requests without it are unaffected. Keys are scoped per organisation and kept for 24 hours.
+
+| Situation | Response |
+|---|---|
+| New key | Request executes normally; a `2xx` response (status, body, content type, `Location`) is stored |
+| Same key, same request (method + path + user + body hash) | Stored response replayed without re-executing, with header `Idempotency-Replayed: true` |
+| Same key, different request | `422` — `errors["Idempotency-Key"]`: "This Idempotency-Key was already used for a different request." |
+| Same key while the first request is still executing | `409` — "A request with this Idempotency-Key is still being processed." |
+| First request failed (non-`2xx` or exception) | Nothing stored; the key can be retried |
+| Key empty or longer than 200 characters | `422` |
+
+An in-progress record older than 2 minutes is treated as abandoned and taken over. Expired records are removed hourly by the `idempotency-cleanup` Hangfire job.
 
 ## 6. Field-Level Validation Reference
 

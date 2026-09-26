@@ -31,6 +31,18 @@ Clean Architecture, five projects:
 - `UnitOfWork.SaveChangesAsync` dispatches them **before** `DbContext.SaveChangesAsync`: each event is wrapped in `DomainEventNotification<TEvent>` and published through MediatR `IPublisher`. Handlers' writes (audit rows) therefore commit in the same save/transaction as the change that raised them. Events raised by handlers are dispatched in the same loop; each event is cleared before publishing, so it is dispatched once.
 - GL posting is deliberately not a domain-event handler: it is an external side effect and must run only after commit, so it stays an explicit enqueue after the save.
 
+### Tenant isolation (implemented)
+
+- `ClaimsDbContext.OnModelCreating` applies one global query filter to every `BaseAuditableEntity`: `OrganisationId == CurrentOrganisationId`, combined with `!IsDeleted` for `ISoftDelete` entities (EF Core 9 allows a single filter per entity, so both conditions live in one expression). `CurrentOrganisationId` comes from `ICurrentUserService` and is parameterised per context instance.
+- `OrganisationId` is stamped on insert in `SaveChangesAsync`.
+- Known limitation: `Policies.PolicyNumber` and `CauseOfLossCodes.Code` are unique across all organisations rather than per organisation. Making them per-tenant changes the alternate key used by loss events and is not needed while the FRS mandates a single fixed `OrganisationId`.
+
+### Idempotency-Key (implemented)
+
+- `IdempotencyMiddleware` (after authentication/authorization) handles write requests carrying `Idempotency-Key`; behaviour is specified in `docs/api-contract.md` §5a.
+- Records live in `IdempotencyRecords` (unique `OrganisationId + Key`), accessed through `IIdempotencyStore` using raw SQL / `ExecuteUpdate` / `ExecuteDelete` / no-tracking reads, so they never interact with the request's change tracker or transaction. The unique index resolves concurrent requests with the same key.
+- The table carries the standard audit and tenant columns but no soft-delete columns: expired records are physically deleted by the hourly `idempotency-cleanup` job.
+
 ## 3. Data Conventions (FRS §15) — Mandatory, Not Optional
 
 All tables/EF configurations must consistently follow these:
