@@ -181,8 +181,7 @@ jobs:
           API_URL: ${{ steps.resources.outputs.apiUrl }}
         run: |
           for attempt in $(seq 1 30); do
-            if curl -fsS "$API_URL/api/health" > /dev/null; then
-              curl -fsS "$API_URL/swagger/v1/swagger.json" > /dev/null
+            if curl -fsS "$API_URL/api/health" > /dev/null && curl -fsS "$API_URL/swagger/v1/swagger.json" > /dev/null; then
               echo "API is healthy: $API_URL"
               exit 0
             fi
