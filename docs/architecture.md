@@ -20,6 +20,17 @@ Clean Architecture, five projects:
 - FluentValidation must be wired at the **MediatR pipeline level** (pipeline behavior), not only at the controller (Assessment §6.1 — this is explicitly called out as something reviewers check)
 - AutoMapper profiles must live in the Application layer, not the API layer (Assessment §6.1)
 
+### Domain events (implemented)
+
+| Event | Raised by | Handler | Effect |
+|---|---|---|---|
+| `ClaimCreatedEvent` | `Claim.Report(...)` (FNOL) | `ClaimCreatedEventHandler` | `CLAIM_CREATED` audit entry |
+| `ClaimStatusChangedEvent` | `Claim.ChangeStatus(...)` — one per transition; Reopen raises Closed→Reopened then the automatic Reopened→Open | `ClaimStatusChangedEventHandler` | `STATUS_CHANGED` audit entry, plus `CLAIM_CLOSED` / `CLAIM_REOPENED` |
+
+- Domain events are plain `IDomainEvent` records collected on the entity (`BaseEntity.DomainEvents`); the Domain has no MediatR dependency.
+- `UnitOfWork.SaveChangesAsync` dispatches them **before** `DbContext.SaveChangesAsync`: each event is wrapped in `DomainEventNotification<TEvent>` and published through MediatR `IPublisher`. Handlers' writes (audit rows) therefore commit in the same save/transaction as the change that raised them. Events raised by handlers are dispatched in the same loop; each event is cleared before publishing, so it is dispatched once.
+- GL posting is deliberately not a domain-event handler: it is an external side effect and must run only after commit, so it stays an explicit enqueue after the save.
+
 ## 3. Data Conventions (FRS §15) — Mandatory, Not Optional
 
 All tables/EF configurations must consistently follow these:

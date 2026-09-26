@@ -1,4 +1,7 @@
+using ClaimsModule.Domain.Claims.Events;
 using ClaimsModule.Domain.Enums;
+using ClaimsModule.Domain.Reference;
+using ClaimEntity = ClaimsModule.Domain.Claims.Claim;
 using static ClaimsModule.Domain.UnitTests.TestData;
 
 namespace ClaimsModule.Domain.UnitTests.Claims;
@@ -33,6 +36,56 @@ public class ClaimTests
         Assert.Collection(changes,
             first => Assert.Equal((ClaimStatus.Closed, ClaimStatus.Reopened, false), (first.From, first.To, first.IsAutomatic)),
             second => Assert.Equal((ClaimStatus.Reopened, ClaimStatus.Open, true), (second.From, second.To, second.IsAutomatic)));
+    }
+
+    [Fact]
+    public void Report_CreatesDraftClaimFromPolicyAndRaisesClaimCreated()
+    {
+        var policy = new Policy { Id = Guid.NewGuid(), PolicyNumber = "POL-1", ClientName = "Acme" };
+
+        var claim = ClaimEntity.Report("CLM-2026-0000001", policy, HandlerId, Now);
+
+        Assert.Equal(ClaimStatus.Draft, claim.Status);
+        Assert.Equal((policy.Id, "POL-1", "Acme"), (claim.PolicyId!.Value, claim.PolicyNumber, claim.ClientName));
+        Assert.Equal(HandlerId, claim.AssignedHandlerId);
+        Assert.Equal(Now, claim.ReportedDate);
+        var created = Assert.IsType<ClaimCreatedEvent>(Assert.Single(claim.DomainEvents));
+        Assert.Same(claim, created.Claim);
+        Assert.Equal(Now, created.OccurredAt);
+    }
+
+    [Fact]
+    public void ChangeStatus_RaisesStatusChangedWithReasonAndAcknowledgedWarnings()
+    {
+        var claim = Claim(ClaimStatus.Open);
+
+        claim.ChangeStatus(ClaimStatus.Closed, "Settled", Now, ["Loss date outside policy period."]);
+
+        var changed = Assert.IsType<ClaimStatusChangedEvent>(Assert.Single(claim.DomainEvents));
+        Assert.Equal((ClaimStatus.Open, ClaimStatus.Closed, false, "Settled"), (changed.From, changed.To, changed.IsAutomatic, changed.Reason));
+        Assert.Equal(["Loss date outside policy period."], changed.AcknowledgedWarnings);
+    }
+
+    [Fact]
+    public void ChangeStatus_ToReopened_RaisesManualThenAutomaticStatusChanged()
+    {
+        var claim = Claim(ClaimStatus.Closed);
+
+        claim.ChangeStatus(ClaimStatus.Reopened, "New evidence", Now);
+
+        Assert.Collection(claim.DomainEvents.Cast<ClaimStatusChangedEvent>(),
+            first => Assert.Equal((ClaimStatus.Closed, ClaimStatus.Reopened, false, "New evidence"), (first.From, first.To, first.IsAutomatic, first.Reason)),
+            second => Assert.Equal((ClaimStatus.Reopened, ClaimStatus.Open, true, (string?)null), (second.From, second.To, second.IsAutomatic, second.Reason)));
+    }
+
+    [Fact]
+    public void ChangeStatus_InvalidTransition_RaisesNoEvent()
+    {
+        var claim = Claim(ClaimStatus.Draft);
+
+        Assert.Throws<InvalidOperationException>(() => claim.ChangeStatus(ClaimStatus.Closed, null, Now));
+
+        Assert.Empty(claim.DomainEvents);
     }
 
     [Fact]

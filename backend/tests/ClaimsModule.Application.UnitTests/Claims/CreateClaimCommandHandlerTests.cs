@@ -44,7 +44,7 @@ public class CreateClaimCommandHandlerTests
     }
 
     private CreateClaimCommandHandler Handler() =>
-        new(_context, _repository, _unitOfWork, _claimNumbers, _audit, _user, new ReserveTransactionSubmitter(_unitOfWork, _audit, _scheduler, _user), new FixedTimeProvider(Now));
+        new(_context, _repository, _unitOfWork, _claimNumbers, _user,new ReserveTransactionSubmitter(_unitOfWork, _audit, _scheduler, _user), new FixedTimeProvider(Now));
 
     private static CreateClaimCommand Command(CreateClaimInitialReserveDto? initialReserve = null, Guid? policyId = null) =>
         new(policyId ?? PolicyId, Now.AddDays(-1), "Water leak damaged the kitchen floor.", null, "WATER", null, null,
