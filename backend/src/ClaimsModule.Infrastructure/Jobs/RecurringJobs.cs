@@ -7,5 +7,6 @@ public static class RecurringJobs
     public static void Register(IRecurringJobManager recurringJobManager)
     {
         recurringJobManager.AddOrUpdate<SlaMonitoringJob>(SlaMonitoringJob.RecurringJobId, job => job.ExecuteAsync(CancellationToken.None), SlaMonitoringJob.Schedule);
+        recurringJobManager.AddOrUpdate<IdempotencyCleanupJob>(IdempotencyCleanupJob.RecurringJobId, job => job.ExecuteAsync(CancellationToken.None), IdempotencyCleanupJob.Schedule);
     }
 }

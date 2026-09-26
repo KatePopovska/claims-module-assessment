@@ -1,4 +1,5 @@
 using ClaimsModule.Application.Common.Interfaces;
+using ClaimsModule.Persistence.Idempotency;
 using ClaimsModule.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IClaimNumberGenerator, ClaimNumberGenerator>();
         services.AddScoped<IClaimRepository, ClaimRepository>();
+        services.AddScoped<IIdempotencyStore, IdempotencyStore>();
 
         services.TryAddSingleton(TimeProvider.System);
 
