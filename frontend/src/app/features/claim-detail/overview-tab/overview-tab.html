@@ -1,0 +1,116 @@
+@let claim = this.claim();
+@let loss = claim.lossEvent;
+
+<div class="layout">
+  <div class="main">
+    <section class="app-card">
+      <div class="app-card-header"><h2>Incident summary</h2></div>
+      <div class="app-card-body">
+        <p class="description">{{ loss?.lossDescription ?? 'No loss event recorded.' }}</p>
+
+        <div class="tiles">
+          <div class="tile">
+            <span class="app-overline">Estimated loss</span>
+            <span class="tile-value">{{ loss?.estimatedLossAmount != null ? (loss!.estimatedLossAmount | currency: 'USD') : 'Not provided' }}</span>
+          </div>
+          <div class="tile">
+            <span class="app-overline">Approved reserves</span>
+            <span class="tile-value">{{ claim.reserves.totalReserves | currency: 'USD' }}</span>
+          </div>
+          <div class="tile">
+            <span class="app-overline">Severity</span>
+            <span class="tile-value">
+              <span class="severity" [class]="'severity sev-' + (claim.severity ?? 'none')">{{ claim.severity ?? 'Not assessed' }}</span>
+            </span>
+          </div>
+        </div>
+
+        <dl class="details">
+          <div><dt>Loss date</dt><dd>{{ loss ? (loss.lossDate | date: 'MMM d, y, HH:mm') : '—' }}</dd></div>
+          <div><dt>Cause of loss</dt><dd>{{ loss?.causeOfLossName ?? loss?.causeOfLossCode ?? '—' }}</dd></div>
+          <div><dt>Location</dt><dd>{{ loss?.lossLocation || '—' }}</dd></div>
+          <div><dt>Reported</dt><dd>{{ claim.reportedDate | date: 'MMM d, y, HH:mm' }}</dd></div>
+          <div><dt>Police report</dt><dd>{{ loss?.policeReportNumber || '—' }}</dd></div>
+          @if (claim.closedAt) {
+            <div><dt>Closed</dt><dd>{{ claim.closedAt | date: 'MMM d, y' }}{{ claim.closureReason ? ' · ' + claim.closureReason : '' }}</dd></div>
+          }
+        </dl>
+      </div>
+    </section>
+
+    <section class="app-card">
+      <div class="app-card-header"><h2>Risk objects</h2></div>
+      <div class="app-card-body">
+        @for (riskObject of claim.riskObjects; track riskObject.id) {
+          <div class="risk-object">
+            <mat-icon>inventory_2</mat-icon>
+            <div>
+              <strong>{{ riskObject.assetDescription }}</strong>
+              @if (riskObject.isPrimary) {
+                <span class="primary">Primary</span>
+              }
+              <div class="app-muted">
+                {{ riskObject.assetType }}{{ riskObject.assetReference ? ' · Ref ' + riskObject.assetReference : '' }}{{ riskObject.damageDescription ? ' · ' + riskObject.damageDescription : '' }}
+              </div>
+            </div>
+          </div>
+        } @empty {
+          <p class="app-muted empty">No risk objects are linked to this claim.</p>
+        }
+      </div>
+    </section>
+
+    <section class="app-card">
+      <div class="app-card-header"><h2>Claim notes</h2></div>
+      <div class="app-card-body">
+        <mat-form-field class="notes">
+          <mat-label>Notes</mat-label>
+          <textarea matInput [formControl]="notes" rows="5" placeholder="Add internal notes about this claim"></textarea>
+          <mat-hint align="end">{{ notes.value.length }} / {{ notesMaxLength }}</mat-hint>
+          <mat-error>Notes are limited to {{ notesMaxLength }} characters.</mat-error>
+        </mat-form-field>
+        <div class="notes-actions">
+          <button mat-button type="button" (click)="resetNotes()" [disabled]="!notesDirty() || savingNotes()">Discard</button>
+          <button mat-flat-button type="button" (click)="saveNotes()" [disabled]="!notesDirty() || savingNotes()">
+            <mat-icon>save</mat-icon>{{ savingNotes() ? 'Saving…' : 'Save notes' }}
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <aside class="side">
+    <section class="app-card">
+      <div class="app-card-header"><h2>Status lifecycle</h2></div>
+      <ol class="timeline app-card-body">
+        @for (step of lifecycle(); track step.status) {
+          <li [class]="step.state">
+            <span class="dot"><mat-icon>{{ step.state === 'done' ? 'check' : step.state === 'current' ? 'radio_button_checked' : 'more_horiz' }}</mat-icon></span>
+            <span class="step-label">{{ statusLabel(step.status) }}</span>
+          </li>
+        }
+      </ol>
+    </section>
+
+    <section class="app-card">
+      <div class="app-card-header">
+        <h2>Recent activity</h2>
+        <button mat-button type="button" (click)="viewAuditLog.emit()">View all</button>
+      </div>
+      <ul class="activity app-card-body">
+        @for (entry of recentActivity(); track entry.id) {
+          <li>
+            <span class="activity-dot"></span>
+            <div>
+              <strong>{{ eventLabel(entry.eventType) }}</strong>
+              <p>{{ entry.description }}</p>
+              <span class="app-muted">{{ userName(entry.createdByUserId) }} · {{ entry.createdAt | date: 'MMM d, y, HH:mm' }}</span>
+            </div>
+          </li>
+        } @empty {
+          <li class="app-muted">No activity yet.</li>
+        }
+      </ul>
+    </section>
+  </aside>
+</div>

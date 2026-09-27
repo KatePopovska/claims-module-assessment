@@ -1,0 +1,108 @@
+<section class="app-card panel">
+  <div class="app-card-header">
+    <h2>Parties</h2>
+    @if (!adding()) {
+      <button mat-flat-button type="button" (click)="adding.set(true)"><mat-icon>person_add</mat-icon>Add party</button>
+    }
+  </div>
+
+  <div class="app-card-body">
+    @if (adding()) {
+      <form class="add-form" [formGroup]="form" (ngSubmit)="addParty()">
+        <mat-form-field>
+          <mat-label>Role</mat-label>
+          <mat-select formControlName="partyRole">
+            @for (option of roleOptions; track option.role) {
+              <mat-option [value]="option.role">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Type</mat-label>
+          <mat-select formControlName="partyType">
+            <mat-option value="Person">Person</mat-option>
+            <mat-option value="Company">Company</mat-option>
+          </mat-select>
+        </mat-form-field>
+        @if (form.controls.partyType.value === 'Person') {
+          <mat-form-field>
+            <mat-label>First name</mat-label>
+            <input matInput formControlName="firstName" />
+            <mat-error>First name is required.</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Last name</mat-label>
+            <input matInput formControlName="lastName" />
+            <mat-error>Last name is required.</mat-error>
+          </mat-form-field>
+        } @else {
+          <mat-form-field class="span-2">
+            <mat-label>Company name</mat-label>
+            <input matInput formControlName="companyName" />
+            <mat-error>Company name is required.</mat-error>
+          </mat-form-field>
+        }
+        <mat-form-field>
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" />
+          <mat-error>Enter a valid email address.</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Phone</mat-label>
+          <input matInput formControlName="phone" />
+          <mat-error>Phone is limited to 50 characters.</mat-error>
+        </mat-form-field>
+        <mat-form-field class="span-2">
+          <mat-label>Notes</mat-label>
+          <input matInput formControlName="notes" />
+          <mat-error>Notes are limited to 2000 characters.</mat-error>
+        </mat-form-field>
+        <div class="form-actions">
+          <button mat-button type="button" (click)="adding.set(false)" [disabled]="saving()">Cancel</button>
+          <button mat-flat-button type="submit" [disabled]="saving()">{{ saving() ? 'Adding…' : 'Add party' }}</button>
+        </div>
+      </form>
+    }
+
+    <ul class="parties">
+      @for (row of rows(); track row.party.id) {
+        @let party = row.party;
+        <li [class.inactive]="!party.isActive">
+          <span class="avatar"><mat-icon>{{ party.partyType === 'Company' ? 'business' : 'person' }}</mat-icon></span>
+          <div class="info">
+            <div class="name">
+              {{ row.name }}
+              <span class="role" [class]="'role role-' + party.partyRole">{{ row.roleLabel }}</span>
+              @if (!party.isActive) {
+                <span class="state">Inactive</span>
+              }
+            </div>
+            <div class="contact app-muted">
+              @if (party.email) {
+                <span><mat-icon>mail</mat-icon>{{ party.email }}</span>
+              }
+              @if (party.phone) {
+                <span><mat-icon>call</mat-icon>{{ party.phone }}</span>
+              }
+              @if (!party.email && !party.phone) {
+                <span>No contact details</span>
+              }
+            </div>
+            @if (party.notes) {
+              <div class="notes">{{ party.notes }}</div>
+            }
+          </div>
+          @if (party.isActive) {
+            <span [matTooltip]="row.removable ? '' : 'The last active Claimant cannot be removed'">
+              <button mat-stroked-button type="button" class="remove" [disabled]="!row.removable || removingId() === party.id" (click)="removeParty(party)">
+                <mat-icon>person_remove</mat-icon>Remove
+              </button>
+            </span>
+          }
+        </li>
+      } @empty {
+        <li class="app-muted">No parties recorded.</li>
+      }
+    </ul>
+  </div>
+</section>

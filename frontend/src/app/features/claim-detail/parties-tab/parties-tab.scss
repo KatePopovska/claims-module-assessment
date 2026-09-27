@@ -1,0 +1,130 @@
+.panel {
+  margin-top: 24px;
+}
+
+.add-form {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px dashed var(--app-border-strong);
+  border-radius: var(--app-radius-sm);
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.form-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.parties {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--app-border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &.inactive {
+      opacity: 0.55;
+    }
+  }
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: var(--app-navy);
+}
+
+.info {
+  flex: 1;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.role,
+.state {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.role-Claimant {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.role-Insured {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.role-ThirdParty {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.role-Attorney {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.state {
+  background: #e2e8f0;
+}
+
+.contact {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+  font-size: 13px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}
+
+.notes {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.remove {
+  --mat-button-outlined-label-text-color: #b91c1c;
+}

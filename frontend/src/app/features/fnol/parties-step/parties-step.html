@@ -1,0 +1,147 @@
+<div class="step">
+  <section class="block">
+    <div class="block-header">
+      <h3>Parties</h3>
+      @if (!addingParty()) {
+        <button mat-stroked-button type="button" (click)="addingParty.set(true)"><mat-icon>person_add</mat-icon>Add party</button>
+      }
+    </div>
+
+    @if (claimantMissing()) {
+      <p class="notice warning" role="alert"><mat-icon>warning_amber</mat-icon>At least one party with the role Claimant is required.</p>
+    }
+
+    @if (parties().length > 0) {
+      <ul class="cards">
+        @for (party of parties(); track $index; let i = $index) {
+          <li class="card">
+            <span class="card-icon"><mat-icon>{{ party.partyType === 'Company' ? 'business' : 'person' }}</mat-icon></span>
+            <span class="card-text">
+              <span class="card-title">{{ partyName(party) }}</span>
+              <span class="card-sub">{{ roleLabel(party.partyRole) }}{{ party.email ? ' · ' + party.email : '' }}{{ party.phone ? ' · ' + party.phone : '' }}</span>
+            </span>
+            <button mat-icon-button type="button" (click)="removeParty(i)" [attr.aria-label]="'Remove ' + partyName(party)"><mat-icon>close</mat-icon></button>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (addingParty()) {
+      <form class="inline-form" [formGroup]="partyDraft" (ngSubmit)="addParty()">
+        <mat-form-field>
+          <mat-label>Role</mat-label>
+          <mat-select formControlName="partyRole">
+            @for (role of partyRoles; track role) {
+              <mat-option [value]="role">{{ roleLabel(role) }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Type</mat-label>
+          <mat-select formControlName="partyType">
+            <mat-option value="Person">Person</mat-option>
+            <mat-option value="Company">Company</mat-option>
+          </mat-select>
+        </mat-form-field>
+        @if (partyDraft.controls.partyType.value === 'Person') {
+          <mat-form-field>
+            <mat-label>First name</mat-label>
+            <input matInput formControlName="firstName" />
+            <mat-error>First name is required.</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Last name</mat-label>
+            <input matInput formControlName="lastName" />
+            <mat-error>Last name is required.</mat-error>
+          </mat-form-field>
+        } @else {
+          <mat-form-field class="span-2">
+            <mat-label>Company name</mat-label>
+            <input matInput formControlName="companyName" />
+            <mat-error>Company name is required.</mat-error>
+          </mat-form-field>
+        }
+        <mat-form-field>
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" />
+          <mat-error>Enter a valid email address.</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Phone</mat-label>
+          <input matInput formControlName="phone" />
+          <mat-error>Phone is limited to 50 characters.</mat-error>
+        </mat-form-field>
+        <div class="inline-actions">
+          @if (parties().length > 0) {
+            <button mat-button type="button" (click)="addingParty.set(false)">Cancel</button>
+          }
+          <button mat-flat-button type="submit"><mat-icon>check</mat-icon>Add party</button>
+        </div>
+      </form>
+    }
+  </section>
+
+  <section class="block">
+    <div class="block-header">
+      <h3>Risk objects</h3>
+      @if (!addingRiskObject()) {
+        <button mat-stroked-button type="button" (click)="addingRiskObject.set(true)"><mat-icon>add</mat-icon>Add risk object</button>
+      }
+    </div>
+
+    @if (riskObjects().length === 0 && !addingRiskObject()) {
+      <p class="notice info"><mat-icon>info</mat-icon>At least one risk object is recommended. Describe the damaged asset so it can be assessed.</p>
+    }
+
+    @if (riskObjects().length > 0) {
+      <ul class="cards">
+        @for (riskObject of riskObjects(); track $index; let i = $index) {
+          <li class="card">
+            <span class="card-icon"><mat-icon>inventory_2</mat-icon></span>
+            <span class="card-text">
+              <span class="card-title">
+                {{ riskObject.assetDescription }}
+                @if (riskObject.isPrimary) {
+                  <span class="primary">Primary</span>
+                }
+              </span>
+              <span class="card-sub">{{ riskObject.assetType }}{{ riskObject.assetReference ? ' · Ref ' + riskObject.assetReference : '' }}{{ riskObject.damageDescription ? ' · ' + riskObject.damageDescription : '' }}</span>
+            </span>
+            <button mat-icon-button type="button" (click)="removeRiskObject(i)" [attr.aria-label]="'Remove ' + riskObject.assetDescription"><mat-icon>close</mat-icon></button>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (addingRiskObject()) {
+      <form class="inline-form" [formGroup]="riskObjectDraft" (ngSubmit)="addRiskObject()">
+        <mat-form-field>
+          <mat-label>Asset type</mat-label>
+          <mat-select formControlName="assetType">
+            @for (type of assetTypes; track type) {
+              <mat-option [value]="type">{{ type }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field class="span-2">
+          <mat-label>Asset description</mat-label>
+          <input matInput formControlName="assetDescription" placeholder="e.g. 2022 Volvo FH16 tractor unit" />
+          <mat-error>Asset description is required.</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Reference number</mat-label>
+          <input matInput formControlName="assetReference" placeholder="Registration, serial…" />
+        </mat-form-field>
+        <mat-form-field class="span-3">
+          <mat-label>Damage description</mat-label>
+          <input matInput formControlName="damageDescription" />
+        </mat-form-field>
+        <mat-checkbox formControlName="isPrimary">Primary asset</mat-checkbox>
+        <div class="inline-actions">
+          <button mat-button type="button" (click)="addingRiskObject.set(false)">Cancel</button>
+          <button mat-flat-button type="submit"><mat-icon>check</mat-icon>Add risk object</button>
+        </div>
+      </form>
+    }
+  </section>
+</div>

@@ -1,0 +1,65 @@
+<app-page-header
+  title="Log New Claim"
+  subtitle="First Notice of Loss: record the loss, the people involved and an optional initial reserve."
+  [breadcrumbs]="[{ label: 'Claims', link: '/claims' }, { label: 'Log New Claim' }]"
+/>
+
+<section class="app-card stepper-card">
+  <mat-stepper linear>
+    <mat-step [stepControl]="form.policyLoss" label="Policy & loss details">
+      @if (stepErrors()[0].length > 0) {
+        <ul class="step-errors" role="alert">
+          @for (message of stepErrors()[0]; track message) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      }
+      <app-policy-loss-step [form]="form.policyLoss" />
+      <div class="actions">
+        <a mat-button routerLink="/claims">Cancel</a>
+        <button mat-flat-button matStepperNext type="button" (click)="touch(form.policyLoss)">
+          Next<mat-icon iconPositionEnd>arrow_forward</mat-icon>
+        </button>
+      </div>
+    </mat-step>
+
+    <mat-step [stepControl]="form.parties" label="Parties & risk objects">
+      @if (stepErrors()[1].length > 0) {
+        <ul class="step-errors" role="alert">
+          @for (message of stepErrors()[1]; track message) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      }
+      <app-parties-step [form]="form.parties" />
+      <div class="actions">
+        <button mat-button matStepperPrevious type="button"><mat-icon>arrow_back</mat-icon>Back</button>
+        <button mat-flat-button matStepperNext type="button" (click)="touch(form.parties)">
+          Next<mat-icon iconPositionEnd>arrow_forward</mat-icon>
+        </button>
+      </div>
+    </mat-step>
+
+    <mat-step label="Initial reserve & review">
+      @if (stepErrors()[2].length > 0) {
+        <ul class="step-errors" role="alert">
+          @for (message of stepErrors()[2]; track message) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      }
+      <app-review-step [form]="form" />
+      <div class="actions">
+        <button mat-button matStepperPrevious type="button" [disabled]="submitting()"><mat-icon>arrow_back</mat-icon>Back</button>
+        <button mat-flat-button type="button" (click)="submit()" [disabled]="!canSubmit() || submitting()">
+          @if (submitting()) {
+            <mat-spinner diameter="18" />
+          } @else {
+            <mat-icon>check_circle</mat-icon>
+          }
+          {{ submitting() ? 'Creating…' : 'Create Claim' }}
+        </button>
+      </div>
+    </mat-step>
+  </mat-stepper>
+</section>

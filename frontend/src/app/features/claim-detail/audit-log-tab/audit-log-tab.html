@@ -1,0 +1,73 @@
+<section class="app-card panel">
+  <div class="app-card-header">
+    <h2>Audit log</h2>
+    <span class="app-muted"><mat-icon>lock</mat-icon>Read-only, newest first</span>
+  </div>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (page(); as page) {
+    @if (page.items.length > 0) {
+      <table mat-table [dataSource]="page.items" [class.is-loading]="loading()">
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef>Timestamp</th>
+          <td mat-cell *matCellDef="let entry" class="nowrap">{{ entry.createdAt | date: 'MMM d, y, HH:mm:ss' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="eventType">
+          <th mat-header-cell *matHeaderCellDef>Event</th>
+          <td mat-cell *matCellDef="let entry">
+            <span class="event" [class]="'event tone-' + tone(entry.eventType)">{{ eventLabel(entry.eventType) }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="description">
+          <th mat-header-cell *matHeaderCellDef>Description</th>
+          <td mat-cell *matCellDef="let entry">
+            {{ entry.description }}
+            @if (entry.oldValue || entry.newValue) {
+              <div class="values app-muted">
+                @if (entry.oldValue) {
+                  <span class="old">{{ entry.oldValue }}</span>
+                }
+                @if (entry.oldValue && entry.newValue) {
+                  →
+                }
+                @if (entry.newValue) {
+                  <span>{{ entry.newValue }}</span>
+                }
+              </div>
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="user">
+          <th mat-header-cell *matHeaderCellDef>User</th>
+          <td mat-cell *matCellDef="let entry" class="nowrap">{{ entry.createdByUserId ? userName(entry.createdByUserId) : 'System' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="related">
+          <th mat-header-cell *matHeaderCellDef>Related</th>
+          <td mat-cell *matCellDef="let entry">
+            @if (relatedTab(entry.relatedEntityType); as tab) {
+              <button mat-button type="button" (click)="openRelated.emit(tab)">View</button>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let entry; columns: columns"></tr>
+      </table>
+    } @else {
+      <p class="app-muted app-card-body">No audit events recorded.</p>
+    }
+
+    <mat-paginator
+      [length]="page.totalCount"
+      [pageIndex]="page.page - 1"
+      [pageSize]="page.pageSize"
+      [pageSizeOptions]="[10, 20, 50, 100]"
+      [disabled]="loading()"
+      (page)="onPage($event)"
+      aria-label="Select page of audit events"
+    />
+  }
+</section>

@@ -1,0 +1,57 @@
+<div class="panel">
+  <header class="panel-header">
+    <div>
+      <h2>{{ adjusting ? 'Adjust ' + componentLabel(data.adjust!.component) + ' reserve' : 'Add reserve' }}</h2>
+      <span class="app-muted">Claim {{ data.claimNumber }}</span>
+    </div>
+    <button mat-icon-button type="button" mat-dialog-close [disabled]="submitting()" aria-label="Close"><mat-icon>close</mat-icon></button>
+  </header>
+
+  <form class="panel-body" [formGroup]="form" (ngSubmit)="submit()">
+    @if (adjusting) {
+      <div class="balance">
+        <span class="app-overline">Current approved balance</span>
+        <strong>{{ data.adjust!.currentBalance | currency: 'USD' }}</strong>
+      </div>
+    } @else {
+      <mat-form-field>
+        <mat-label>Component</mat-label>
+        <mat-select formControlName="component">
+          @for (component of availableComponents; track component) {
+            <mat-option [value]="component">{{ componentLabel(component) }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>Choose a reserve component.</mat-error>
+      </mat-form-field>
+    }
+
+    <mat-form-field>
+      <mat-label>{{ adjusting ? 'Change amount (USD, negative to reduce)' : 'Amount (USD)' }}</mat-label>
+      <input matInput type="number" step="0.01" formControlName="amount" />
+      <mat-error>Enter an amount.</mat-error>
+    </mat-form-field>
+    @if (amountError(); as error) {
+      <p class="error" role="alert">{{ error }}</p>
+    }
+
+    @if (projectedBalance() !== null) {
+      <p class="app-muted">New balance after approval: <strong>{{ projectedBalance() | currency: 'USD' }}</strong></p>
+    }
+
+    <app-reserve-threshold [amount]="amount()" />
+
+    <mat-form-field>
+      <mat-label>Reason</mat-label>
+      <textarea matInput formControlName="changeReason" rows="3"></textarea>
+      <mat-hint align="end">{{ form.controls.changeReason.value.length }} / 1000</mat-hint>
+      <mat-error>Reason is limited to 1000 characters.</mat-error>
+    </mat-form-field>
+
+    <footer class="panel-actions">
+      <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancel</button>
+      <button mat-flat-button type="submit" [disabled]="submitting() || !!amountError()">
+        {{ submitting() ? 'Submitting…' : adjusting ? 'Submit adjustment' : 'Add reserve' }}
+      </button>
+    </footer>
+  </form>
+</div>

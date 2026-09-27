@@ -1,0 +1,126 @@
+@let s = summary();
+
+<div class="step">
+  <section class="block reserve" [formGroup]="form().reserve">
+    <div class="block-header">
+      <h3>Initial reserve <span class="app-muted optional">(optional)</span></h3>
+      <mat-slide-toggle formControlName="enabled">Add initial reserve</mat-slide-toggle>
+    </div>
+
+    @if (!s.policy) {
+      <p class="notice warning"><mat-icon>lock</mat-icon>No policy linked. Policy must be associated before reserves can be set.</p>
+    } @else if (s.reserve.enabled) {
+      <div class="reserve-grid">
+        <mat-form-field>
+          <mat-label>Component</mat-label>
+          <mat-select formControlName="component">
+            @for (component of components; track component) {
+              <mat-option [value]="component">{{ component === 'SubrogationRecoverable' ? 'Subrogation Recoverable' : component }}</mat-option>
+            }
+          </mat-select>
+          <mat-error>Choose a reserve component.</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Amount (USD)</mat-label>
+          <input matInput type="number" step="0.01" formControlName="amount" />
+          @if (form().reserve.controls.amount.hasError('required')) {
+            <mat-error>Enter the reserve amount.</mat-error>
+          } @else if (form().reserve.controls.amount.hasError('amountRule')) {
+            <mat-error>Reserve amount must be greater than zero.</mat-error>
+          } @else if (form().reserve.controls.amount.hasError('decimals')) {
+            <mat-error>Use at most 4 decimal places.</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Reason</mat-label>
+          <input matInput formControlName="changeReason" placeholder="Why this reserve is being set" />
+          <mat-error>Reason is limited to 1000 characters.</mat-error>
+        </mat-form-field>
+      </div>
+      <app-reserve-threshold [amount]="reserveAmount()" />
+    }
+  </section>
+
+  @if (s.warnings.length > 0) {
+    <section class="notice warning warnings" aria-label="Warnings">
+      <mat-icon>warning_amber</mat-icon>
+      <div>
+        <strong>Warnings (the claim can still be created)</strong>
+        <ul>
+          @for (warning of s.warnings; track warning) {
+            <li>{{ warning }}</li>
+          }
+        </ul>
+      </div>
+    </section>
+  }
+
+  <section class="block">
+    <h3>Review summary</h3>
+    <table class="summary">
+      <tbody>
+        <tr>
+          <th>Policy</th>
+          <td>
+            @if (s.policy; as policy) {
+              {{ policy.policyNumber }} · {{ policy.clientName }}
+              <span class="app-muted">({{ policy.effectiveDate | date: 'MMM d, y' }} – {{ policy.expirationDate | date: 'MMM d, y' }})</span>
+            } @else {
+              <span class="app-muted">Unknown policy</span>
+            }
+          </td>
+        </tr>
+        <tr>
+          <th>Loss date</th>
+          <td>{{ s.lossDate | date: 'MMM d, y, HH:mm' }}</td>
+        </tr>
+        <tr>
+          <th>Cause of loss</th>
+          <td>{{ s.cause ?? '—' }}</td>
+        </tr>
+        <tr>
+          <th>Location</th>
+          <td>{{ s.lossLocation || '—' }}</td>
+        </tr>
+        <tr>
+          <th>Estimated loss</th>
+          <td>{{ s.estimatedLossAmount !== null ? (s.estimatedLossAmount | currency: 'USD') : '—' }}</td>
+        </tr>
+        <tr>
+          <th>Description</th>
+          <td class="description">{{ s.lossDescription }}</td>
+        </tr>
+        <tr>
+          <th>Parties</th>
+          <td>
+            @for (party of s.parties; track $index) {
+              <div>{{ partyName(party) }} <span class="app-muted">· {{ party.partyRole }}</span></div>
+            } @empty {
+              —
+            }
+          </td>
+        </tr>
+        <tr>
+          <th>Risk objects</th>
+          <td>
+            @for (riskObject of s.riskObjects; track $index) {
+              <div>{{ riskObject.assetDescription }} <span class="app-muted">· {{ riskObject.assetType }}</span></div>
+            } @empty {
+              <span class="app-muted">None</span>
+            }
+          </td>
+        </tr>
+        <tr>
+          <th>Initial reserve</th>
+          <td>
+            @if (s.policy && s.reserve.enabled && s.reserve.amount !== null) {
+              {{ s.reserve.component }} · {{ s.reserve.amount | currency: 'USD' }}
+            } @else {
+              <span class="app-muted">None</span>
+            }
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>

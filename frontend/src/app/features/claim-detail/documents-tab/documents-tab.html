@@ -1,0 +1,50 @@
+<section class="app-card panel">
+  <div class="app-card-header">
+    <h2>Evidence & documents</h2>
+    <div class="upload-controls">
+      <mat-form-field class="type-field">
+        <mat-label>Document type</mat-label>
+        <mat-select [formControl]="documentType">
+          @for (type of documentTypes; track type) {
+            <mat-option [value]="type">{{ type }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <button mat-flat-button type="button" (click)="chooseFile()" [disabled]="!!uploading()"><mat-icon>upload_file</mat-icon>Upload new</button>
+      <input #fileInput type="file" hidden [accept]="accept" (change)="onFileSelected($event)" />
+    </div>
+  </div>
+
+  <div class="app-card-body">
+    <p class="app-muted hint">PDF, JPEG, PNG, DOCX, XLSX, TXT or CSV, up to 50 MB.</p>
+
+    @if (uploading(); as upload) {
+      <div class="upload-progress" role="status">
+        <span>Uploading {{ upload.name }}… {{ upload.percent }}%</span>
+        <mat-progress-bar mode="determinate" [value]="upload.percent" />
+      </div>
+    }
+
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+
+    <div class="grid">
+      @for (document of documents(); track document.id) {
+        <button type="button" class="tile" (click)="open(document)" [matTooltip]="document.notes ?? 'Open in a new tab'">
+          <span class="preview"><mat-icon>{{ icon(document) }}</mat-icon></span>
+          <span class="tile-body">
+            <span class="name">{{ document.documentName }}</span>
+            <span class="meta">{{ document.documentType }} · {{ fileSize(document.fileSizeBytes) }}</span>
+            <span class="meta">{{ document.uploadedAt | date: 'MMM d, y, HH:mm' }} · {{ userName(document.uploadedByUserId) }}</span>
+          </span>
+          <mat-icon class="open-icon">open_in_new</mat-icon>
+        </button>
+      } @empty {
+        @if (!loading()) {
+          <p class="app-muted empty">No documents have been uploaded for this claim.</p>
+        }
+      }
+    </div>
+  </div>
+</section>

@@ -109,6 +109,11 @@ a {
   border-radius: var(--app-radius-sm);
 }
 
+.app-side-panel {
+  --mat-dialog-container-shape: 0;
+  --mat-dialog-container-max-width: 100vw;
+}
+
 .mat-mdc-snack-bar-container {
   &.app-snackbar-error {
     --mat-snack-bar-container-color: #b91c1c;
