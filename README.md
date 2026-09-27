@@ -37,7 +37,21 @@ Configuration (`backend/src/ClaimsModule.API/appsettings.Development.json`):
 - `Storage:Provider` — `LocalFileSystem` (default) or `AzureBlob`
 - `OrganisationId` — fixed tenant GUID seeded across the app (FRS §15.1)
 
-No EF Core migrations exist yet — the domain model and schema come next (see `docs/progress.md`).
+## Database
+
+Apply the schema (also seeds reference data via EF `HasData`):
+
+```
+cd backend
+dotnet ef database update --project src/ClaimsModule.Persistence --startup-project src/ClaimsModule.API
+```
+
+Standalone seed scripts for reference data (`backend/database/seed/`) — idempotent, safe to re-run against a migrated database, same rows as the EF seed:
+
+```
+sqlcmd -S <server> -d <database> -i backend/database/seed/01-cause-of-loss-codes.sql
+sqlcmd -S <server> -d <database> -i backend/database/seed/02-policies.sql
+```
 
 ## Frontend
 

@@ -1,0 +1,24 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin-left: var(--app-sidebar-width);
+}
+
+.content {
+  flex: 1;
+  padding: 32px;
+}
+
+.footer {
+  margin: 0 32px;
+  padding: 20px 0;
+  border-top: 1px solid var(--app-border);
+  font-size: 12px;
+  color: var(--app-text-muted);
+}

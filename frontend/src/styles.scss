@@ -1,0 +1,124 @@
+@use '@angular/material' as mat;
+@use './styles/theme-colors' as theme;
+
+:root {
+  --app-navy: #0b3a8c;
+  --app-navy-dark: #082c6b;
+  --app-link: #0b3a8c;
+  --app-bg: #f6f8fc;
+  --app-surface: #ffffff;
+  --app-border: #e2e8f0;
+  --app-border-strong: #cbd5e1;
+  --app-text: #0f172a;
+  --app-text-muted: #64748b;
+  --app-radius: 12px;
+  --app-radius-sm: 8px;
+  --app-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  --app-sidebar-width: 256px;
+  --app-topbar-height: 64px;
+}
+
+html {
+  height: 100%;
+  color-scheme: light;
+
+  @include mat.theme(
+    (
+      color: (
+        primary: theme.$primary-palette,
+        tertiary: theme.$tertiary-palette,
+        theme-type: light,
+      ),
+      typography: (
+        plain-family: 'Inter, Roboto, sans-serif',
+        brand-family: 'Inter, Roboto, sans-serif',
+      ),
+      density: -1,
+    )
+  );
+
+  @include mat.theme-overrides(
+    (
+      primary: #0b3a8c,
+      on-primary: #ffffff,
+      surface: #ffffff,
+      background: #f6f8fc,
+      surface-container-lowest: #ffffff,
+      surface-container-low: #ffffff,
+      surface-container: #ffffff,
+      surface-container-high: #ffffff,
+      surface-container-highest: #f1f5f9,
+      outline-variant: #e2e8f0,
+      corner-small: 8px,
+      corner-medium: 12px,
+    )
+  );
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  font: var(--mat-sys-body-medium);
+  font-family: Inter, Roboto, sans-serif;
+  min-width: 1280px;
+}
+
+a {
+  color: var(--app-link);
+}
+
+.app-card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  box-shadow: var(--app-shadow);
+}
+
+.app-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+
+  h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+.app-card-body {
+  padding: 20px 24px 24px;
+}
+
+.app-muted {
+  color: var(--app-text-muted);
+}
+
+.app-overline {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.mat-mdc-button-base.app-pill-button {
+  border-radius: var(--app-radius-sm);
+}
+
+.mat-mdc-snack-bar-container {
+  &.app-snackbar-error {
+    --mat-snack-bar-container-color: #b91c1c;
+    --mat-snack-bar-supporting-text-color: #ffffff;
+    --mat-snack-bar-button-color: #ffffff;
+  }
+
+  &.app-snackbar-success {
+    --mat-snack-bar-container-color: #166534;
+    --mat-snack-bar-supporting-text-color: #ffffff;
+    --mat-snack-bar-button-color: #ffffff;
+  }
+}

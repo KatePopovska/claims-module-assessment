@@ -1,0 +1,30 @@
+<header class="top-bar">
+  <form class="search" role="search" (ngSubmit)="submitSearch()">
+    <mat-icon>search</mat-icon>
+    <input
+      type="search"
+      [formControl]="search"
+      placeholder="Search claims by claim number or client name..."
+      aria-label="Search claims"
+    />
+  </form>
+
+  <button type="button" class="user" [matMenuTriggerFor]="userMenu" aria-label="Switch user">
+    <span class="user-text">
+      <span class="user-name">{{ auth.currentUser().name }}</span>
+      <span class="user-role">{{ auth.currentUser().roleLabel }}</span>
+    </span>
+    <span class="avatar">{{ initials(auth.currentUser().name) }}</span>
+    <mat-icon>expand_more</mat-icon>
+  </button>
+
+  <mat-menu #userMenu="matMenu" xPosition="before">
+    <div class="menu-caption app-overline" (click)="$event.stopPropagation()">Switch mock user</div>
+    @for (user of auth.users; track user.id) {
+      <button mat-menu-item type="button" (click)="switchUser(user.id)">
+        <mat-icon>{{ user.id === auth.currentUser().id ? 'radio_button_checked' : 'radio_button_unchecked' }}</mat-icon>
+        <span>{{ user.name }} · {{ user.roleLabel }}</span>
+      </button>
+    }
+  </mat-menu>
+</header>
