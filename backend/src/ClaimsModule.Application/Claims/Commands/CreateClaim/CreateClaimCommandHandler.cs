@@ -67,7 +67,7 @@ public class CreateClaimCommandHandler(
 
         var initialReserveResult = reserveTransaction is null ? null : new ReserveSubmissionResultDto(ReserveProjections.ToDto(reserveTransaction), reserveWarnings);
 
-        return new ClaimCreatedDto(claim.Id, claim.ClaimNumber, claim.Status, claim.ReportedDate, initialReserveResult);
+        return new ClaimCreatedDto(claim.Id, claim.ClaimNumber, claim.Status, claim.ReportedDate, ClaimIntakeRules.GetWarnings(claim), initialReserveResult);
     }
 
     private Claim BuildClaim(CreateClaimCommand request, string claimNumber, Policy? policy)

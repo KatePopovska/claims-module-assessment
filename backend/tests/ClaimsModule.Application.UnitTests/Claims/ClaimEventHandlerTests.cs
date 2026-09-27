@@ -1,6 +1,7 @@
 using ClaimsModule.Application.Claims.EventHandlers;
 using ClaimsModule.Application.Common.Events;
 using ClaimsModule.Application.Common.Interfaces;
+using ClaimsModule.Domain.Claims;
 using ClaimsModule.Domain.Claims.Events;
 using ClaimsModule.Domain.Enums;
 using NSubstitute;
@@ -20,6 +21,29 @@ public class ClaimEventHandlerTests
         await new ClaimCreatedEventHandler(_audit).Handle(new DomainEventNotification<ClaimCreatedEvent>(new ClaimCreatedEvent(claim, Now)), CancellationToken.None);
 
         _audit.Received(1).Log(claim, AuditEventType.CLAIM_CREATED, "Claim CLM-2026-0000001 created via FNOL intake.", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ClaimCreated_RecordsEachIntakeWarningAsValidationIssue()
+    {
+        var claim = Claim();
+        claim.PolicyId = null;
+
+        await new ClaimCreatedEventHandler(_audit).Handle(new DomainEventNotification<ClaimCreatedEvent>(new ClaimCreatedEvent(claim, Now)), CancellationToken.None);
+
+        _audit.Received(1).Log(claim, AuditEventType.VALIDATION_ISSUE_ADDED, ClaimIntakeRules.PolicyUnknownWarning, Arg.Any<string?>(), "Warning", Arg.Any<Guid?>(), Arg.Any<string?>());
+        _audit.Received(1).Log(claim, AuditEventType.VALIDATION_ISSUE_ADDED, ClaimIntakeRules.NoRiskObjectsWarning, Arg.Any<string?>(), "Warning", Arg.Any<Guid?>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ClaimCreated_WithoutWarnings_RecordsNoValidationIssue()
+    {
+        var claim = Claim();
+        claim.RiskObjects.Add(new ClaimRiskObject { Id = Guid.NewGuid(), AssetType = AssetType.Vehicle, AssetDescription = "Truck" });
+
+        await new ClaimCreatedEventHandler(_audit).Handle(new DomainEventNotification<ClaimCreatedEvent>(new ClaimCreatedEvent(claim, Now)), CancellationToken.None);
+
+        _audit.DidNotReceive().Log(Arg.Any<ClaimsModule.Domain.Claims.Claim>(), AuditEventType.VALIDATION_ISSUE_ADDED, Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<string?>());
     }
 
     [Fact]

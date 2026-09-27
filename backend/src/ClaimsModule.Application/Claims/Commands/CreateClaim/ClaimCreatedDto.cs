@@ -3,4 +3,4 @@ using ClaimsModule.Domain.Enums;
 
 namespace ClaimsModule.Application.Claims.Commands.CreateClaim;
 
-public record ClaimCreatedDto(Guid Id, string ClaimNumber, ClaimStatus Status, DateTimeOffset ReportedDate, ReserveSubmissionResultDto? InitialReserve);
+public record ClaimCreatedDto(Guid Id, string ClaimNumber, ClaimStatus Status, DateTimeOffset ReportedDate, IReadOnlyList<string> Warnings, ReserveSubmissionResultDto? InitialReserve);

@@ -28,7 +28,7 @@ public class CreateClaimCommandHandlerTests
 
     public CreateClaimCommandHandlerTests()
     {
-        var policies = AsyncQueryable.DbSetOf(new Policy { Id = PolicyId, PolicyNumber = "POL-1", ClientName = "Acme" });
+        var policies = AsyncQueryable.DbSetOf(new Policy { Id = PolicyId, PolicyNumber = "POL-1", ClientName = "Acme", EffectiveDate = Now.AddYears(-1), ExpirationDate = Now.AddYears(1) });
         _context.Policies.Returns(policies);
         _claimNumbers.GenerateAsync(Arg.Any<CancellationToken>()).Returns("CLM-2026-0000042");
         _unitOfWork.BeginTransactionAsync(Arg.Any<CancellationToken>()).Returns(_transaction);
@@ -58,6 +58,7 @@ public class CreateClaimCommandHandlerTests
         Assert.Equal(DatabaseGeneratedClaimId, result.Id);
         Assert.Equal("CLM-2026-0000042", result.ClaimNumber);
         Assert.Null(result.InitialReserve);
+        Assert.Equal([ClaimIntakeRules.NoRiskObjectsWarning], result.Warnings);
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         await _transaction.Received(1).CommitAsync(Arg.Any<CancellationToken>());
         _scheduler.DidNotReceiveWithAnyArgs().Enqueue(default!);

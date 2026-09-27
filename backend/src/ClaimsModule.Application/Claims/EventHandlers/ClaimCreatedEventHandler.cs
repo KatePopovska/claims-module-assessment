@@ -1,5 +1,6 @@
 using ClaimsModule.Application.Common.Events;
 using ClaimsModule.Application.Common.Interfaces;
+using ClaimsModule.Domain.Claims;
 using ClaimsModule.Domain.Claims.Events;
 using ClaimsModule.Domain.Enums;
 using MediatR;
@@ -13,6 +14,11 @@ public class ClaimCreatedEventHandler(IAuditLogService auditLogService) : INotif
         var claim = notification.DomainEvent.Claim;
 
         auditLogService.Log(claim, AuditEventType.CLAIM_CREATED, $"Claim {claim.ClaimNumber} created via FNOL intake.");
+
+        foreach (var warning in ClaimIntakeRules.GetWarnings(claim))
+        {
+            auditLogService.Log(claim, AuditEventType.VALIDATION_ISSUE_ADDED, warning, newValue: "Warning");
+        }
 
         return Task.CompletedTask;
     }

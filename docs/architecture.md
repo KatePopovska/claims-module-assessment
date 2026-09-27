@@ -24,7 +24,7 @@ Clean Architecture, five projects:
 
 | Event | Raised by | Handler | Effect |
 |---|---|---|---|
-| `ClaimCreatedEvent` | `Claim.Report(...)` (FNOL) | `ClaimCreatedEventHandler` | `CLAIM_CREATED` audit entry |
+| `ClaimCreatedEvent` | `Claim.Report(...)` (FNOL) | `ClaimCreatedEventHandler` | `CLAIM_CREATED` audit entry, plus one `VALIDATION_ISSUE_ADDED` entry per intake warning from `ClaimIntakeRules` (policy unknown, loss date outside policy period, no risk objects) |
 | `ClaimStatusChangedEvent` | `Claim.ChangeStatus(...)` — one per transition; Reopen raises Closed→Reopened then the automatic Reopened→Open | `ClaimStatusChangedEventHandler` | `STATUS_CHANGED` audit entry, plus `CLAIM_CLOSED` / `CLAIM_REOPENED` |
 
 - Domain events are plain `IDomainEvent` records collected on the entity (`BaseEntity.DomainEvents`); the Domain has no MediatR dependency.
