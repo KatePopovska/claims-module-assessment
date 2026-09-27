@@ -21,6 +21,29 @@ frontend/            Angular 21 application (Angular Material, standalone compon
 - .NET 9 SDK
 - Node.js 24.13.0 with its bundled npm 11.6.2 (pinned in `frontend/.nvmrc`; CI uses the same version)
 - SQL Server (LocalDB, Docker, or Azure SQL) — only needed once you run migrations; the backend builds and serves Swagger without one
+- Or only Docker Desktop, to run everything in containers (next section)
+
+## Run with Docker
+
+The whole stack runs locally with one command: SQL Server, the EF Core migrations, the API and the Angular app. Docker is for local development only; Azure hosting does not use containers.
+
+```
+cp .env.example .env          # then set MSSQL_SA_PASSWORD in .env
+docker compose up --build
+```
+
+| URL | What |
+|---|---|
+| http://localhost:4200 | Angular app |
+| http://localhost:5160/swagger | API (Swagger) |
+| http://localhost:5160/hangfire | Hangfire dashboard |
+| `localhost,1433` (user `sa`) | SQL Server, e.g. for SSMS |
+
+- `migrate` applies all migrations (including the reference data) and exits; the API starts only after it succeeds.
+- Uploaded documents are stored on the local filesystem (the FRS BR-D-03 fallback when Azure Blob Storage is not configured) in the `uploads` volume, and download links are served by the API under `/uploads`.
+- Ports 4200 and 5160 must be free (stop `npm start` / a locally running API first). `SQL_PORT` in `.env` moves SQL Server if 1433 is taken.
+- Avoid `;` in the SA password: it is embedded in a connection string.
+- `docker compose down` stops everything; `docker compose down -v` also deletes the database and the uploaded files.
 
 ## Backend
 
