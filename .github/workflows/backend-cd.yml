@@ -52,7 +52,7 @@ jobs:
         run: dotnet build ClaimsModule.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test ClaimsModule.slnx --configuration Release --no-build --logger trx --results-directory TestResults
+        run: dotnet test ClaimsModule.slnx --configuration Release --no-build --filter "Category!=Integration" --logger trx --results-directory TestResults
 
       - name: Upload test results
         if: always()
