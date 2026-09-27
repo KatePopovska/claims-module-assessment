@@ -1,0 +1,19 @@
+@if (created(); as newClaim) {
+  <section class="success-banner" role="status">
+    <mat-icon>check_circle</mat-icon>
+    <div class="text">
+      <strong>Claim {{ newClaim.claimNumber }} was created</strong>
+      <span>It is in Draft status and assigned to you.</span>
+      @if (initialReserveNote(newClaim); as note) {
+        <span>{{ note }}</span>
+      }
+      @for (warning of newClaim.initialReserve?.warnings ?? []; track warning) {
+        <span class="warning">{{ warning }}</span>
+      }
+    </div>
+    <button mat-icon-button type="button" (click)="created.set(null)" aria-label="Dismiss"><mat-icon>close</mat-icon></button>
+  </section>
+}
+
+<app-page-header title="Claim detail" [breadcrumbs]="[{ label: 'Claims', link: '/claims' }, { label: created()?.claimNumber ?? id() }]" />
+<section class="app-card app-card-body app-muted">The claim detail screen is implemented in the next phase.</section>

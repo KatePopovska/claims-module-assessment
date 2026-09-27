@@ -1,0 +1,154 @@
+<form [formGroup]="form()" class="step">
+  <section class="block">
+    <div class="block-header">
+      <h3>Policy</h3>
+      <mat-slide-toggle formControlName="unknownPolicy">Unknown policy</mat-slide-toggle>
+    </div>
+
+    @if (form().controls.unknownPolicy.value) {
+      <p class="notice warning">
+        <mat-icon>info</mat-icon>
+        The claim will be created without a policy link and flagged "Policy unknown". Reserves cannot be set until a policy is associated.
+      </p>
+    } @else {
+      <mat-form-field class="full">
+        <mat-label>Search policy</mat-label>
+        <input matInput formControlName="policy" [matAutocomplete]="policyAuto" placeholder="Policy number or client name" />
+        @if (searching()) {
+          <mat-spinner matSuffix diameter="20" />
+        } @else {
+          <mat-icon matSuffix>search</mat-icon>
+        }
+        <mat-autocomplete #policyAuto [displayWith]="displayPolicy" (optionSelected)="onPolicySelected($event)">
+          @for (policy of policyResults(); track policy.id) {
+            <mat-option [value]="policy">
+              <span class="option-main">{{ policy.policyNumber }}</span>
+              <span class="option-sub">{{ policy.clientName }} · {{ policy.status }}</span>
+            </mat-option>
+          }
+        </mat-autocomplete>
+        @if (form().controls.policy.hasError('required')) {
+          <mat-error>Select a policy, or switch on "Unknown policy".</mat-error>
+        } @else if (form().controls.policy.hasError('notSelected')) {
+          <mat-error>Choose a policy from the list.</mat-error>
+        }
+      </mat-form-field>
+
+      @if (selected(); as policy) {
+        <div class="policy-card">
+          <div>
+            <div class="policy-number">{{ policy.policyNumber }}</div>
+            <div class="app-muted">{{ policy.clientName }}</div>
+          </div>
+          <div>
+            <div class="app-overline">Effective period</div>
+            <div>{{ policy.effectiveDate | date: 'MMM d, y' }} – {{ policy.expirationDate | date: 'MMM d, y' }}</div>
+          </div>
+          <div>
+            <div class="app-overline">Coverage</div>
+            <div class="coverage">
+              @for (type of coverage()?.coverageTypes ?? []; track type) {
+                <span class="chip">{{ type }}</span>
+              } @empty {
+                <span class="app-muted">Loading…</span>
+              }
+            </div>
+          </div>
+          <div class="cover-state">
+            @switch (coverState()) {
+              @case ('in-force') {
+                <span class="badge green">In force on loss date</span>
+              }
+              @case ('outside-period') {
+                <span class="badge amber">Loss date outside policy period</span>
+              }
+              @case ('expired') {
+                <span class="badge amber">Policy {{ policy.status.toLowerCase() }}</span>
+              }
+              @default {
+                <span class="badge grey">Enter the loss date to check cover</span>
+              }
+            }
+          </div>
+        </div>
+      }
+    }
+  </section>
+
+  <section class="block">
+    <h3>Loss details</h3>
+    <div class="grid">
+      <mat-form-field>
+        <mat-label>Loss date</mat-label>
+        <input matInput formControlName="lossDate" [matDatepicker]="datePicker" [max]="maxLossDate" required />
+        <mat-datepicker-toggle matIconSuffix [for]="datePicker" />
+        <mat-datepicker #datePicker />
+        @if (form().controls.lossDate.hasError('future')) {
+          <mat-error>Loss date cannot be in the future.</mat-error>
+        } @else if (form().controls.lossDate.hasError('required') || form().controls.lossDate.hasError('matDatepickerParse')) {
+          <mat-error>Enter a valid loss date.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Loss time</mat-label>
+        <input matInput formControlName="lossDate" [matTimepicker]="timePicker" />
+        <mat-timepicker-toggle matIconSuffix [for]="timePicker" />
+        <mat-timepicker #timePicker />
+        @if (form().controls.lossDate.hasError('future')) {
+          <mat-error>Loss date cannot be in the future.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Cause of loss</mat-label>
+        <input matInput formControlName="causeOfLoss" [matAutocomplete]="causeAuto" placeholder="Type to search" required />
+        <mat-icon matSuffix>expand_more</mat-icon>
+        <mat-autocomplete #causeAuto [displayWith]="displayCause">
+          @for (cause of filteredCauses(); track cause.code) {
+            <mat-option [value]="cause">
+              <span class="option-main">{{ cause.name }}</span>
+              <span class="option-sub">{{ cause.perilCategory }}</span>
+            </mat-option>
+          }
+        </mat-autocomplete>
+        @if (form().controls.causeOfLoss.hasError('required')) {
+          <mat-error>Cause of loss is required.</mat-error>
+        } @else if (form().controls.causeOfLoss.hasError('notSelected')) {
+          <mat-error>Choose a cause of loss from the list.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Estimated loss amount (USD)</mat-label>
+        <input matInput type="number" min="0" step="0.01" formControlName="estimatedLossAmount" />
+        @if (form().controls.estimatedLossAmount.hasError('min')) {
+          <mat-error>Amount cannot be negative.</mat-error>
+        } @else if (form().controls.estimatedLossAmount.hasError('decimals')) {
+          <mat-error>Use at most 4 decimal places.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field class="span-2">
+        <mat-label>Loss location</mat-label>
+        <input matInput formControlName="lossLocation" placeholder="Street, city or free-text description" />
+        @if (form().controls.lossLocation.hasError('maxlength')) {
+          <mat-error>Location is limited to 500 characters.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field class="span-2">
+        <mat-label>Loss description</mat-label>
+        <textarea matInput formControlName="lossDescription" rows="4" required></textarea>
+        <mat-hint align="end" [class.short]="descriptionLength() < minDescriptionLength">
+          {{ descriptionLength() }} / {{ minDescriptionLength }} characters minimum
+        </mat-hint>
+        @if (form().controls.lossDescription.hasError('required')) {
+          <mat-error>Loss description is required.</mat-error>
+        } @else if (form().controls.lossDescription.hasError('minlength')) {
+          <mat-error>Loss description must be at least {{ minDescriptionLength }} characters.</mat-error>
+        }
+      </mat-form-field>
+    </div>
+  </section>
+</form>
