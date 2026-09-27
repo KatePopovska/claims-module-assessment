@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+
+FROM node:24.13.0-slim AS build
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+RUN npx ng build --configuration docker
+
+FROM nginx:1.27-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist/claims-module-web/browser /usr/share/nginx/html
+EXPOSE 80
