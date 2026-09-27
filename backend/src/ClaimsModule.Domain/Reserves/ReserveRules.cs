@@ -105,6 +105,11 @@ public static class ReserveRules
             : [new BusinessRuleViolation("SubmittedBy", "Only the submitter can retract a pending reserve transaction.")];
     }
 
+    public static IReadOnlyList<BusinessRuleViolation> CheckPostingRetry(ReserveHistory transaction) =>
+        transaction.PostingStatus == ReservePostingStatus.Failed
+            ? []
+            : [new BusinessRuleViolation("PostingStatus", $"Only a Failed GL posting can be retried. This transaction's posting is {transaction.PostingStatus}.")];
+
     public static IReadOnlyList<BusinessRuleViolation> CheckReserveLimitOverride(Claim claim, string? role)
     {
         var violations = new List<BusinessRuleViolation>();

@@ -68,6 +68,17 @@ public class ReserveHistory : BaseAuditableEntity, IClaimChild
 
     public void MarkPostingFailed() => PostingStatus = ReservePostingStatus.Failed;
 
+    public void ResetPostingForRetry()
+    {
+        if (PostingStatus != ReservePostingStatus.Failed)
+        {
+            throw new InvalidOperationException($"Reserve transaction {Id} posting is {PostingStatus}, not {ReservePostingStatus.Failed}.");
+        }
+
+        PostingStatus = ReservePostingStatus.Pending;
+        PostingJobId = null;
+    }
+
     private void EnsurePending()
     {
         if (!IsPending())

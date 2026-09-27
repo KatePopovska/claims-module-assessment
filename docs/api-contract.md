@@ -27,6 +27,7 @@ Source: FRS §10 (authoritative endpoint list and behavior), cross-checked again
 | `/api/claims/{id}/reserves/{txnId}/approve` | POST | Approve a pending reserve. Requires Supervisor/Manager role. Validates role, validates not self-approving. On success: updates approval status, enqueues GL posting job. |
 | `/api/claims/{id}/reserves/{txnId}/reject` | POST | Reject a pending reserve. Requires Supervisor/Manager. Body: `{ rejectionReason }`. Sets transaction status to `Rejected`. |
 | `/api/claims/{id}/reserves/{txnId}/retract` | POST | Submitter retracts their own pending reserve before approval. Sets status to `Cancelled`. |
+| `/api/claims/{id}/reserves/{txnId}/retry-posting` | POST | Re-queue a GL posting whose status is `Failed` (FRS §11.3 retry button). See the implemented-behaviour notes below. |
 | `/api/claims/{id}/reserve-limit-override` | PUT | Manager sets the $10M aggregate-limit override (BR-R-05, ADR-003). Body: `{ reason }` (required, max 500). `422` for non-Manager or if already set. Returns `204`. Audited as `RESERVE_OVERRIDE_SET`. |
 
 **Implemented behaviour (2026-09-24):**
@@ -38,7 +39,7 @@ Source: FRS §10 (authoritative endpoint list and behavior), cross-checked again
 - A change that would breach the $10M limit is never auto-approved, and can't be approved until a Manager sets the override.
 - Approve and reject both apply the amount authority (Supervisor up to $100,000, Manager above); approve also rejects self-approval. Only the submitter can retract. All three return `200` with the updated transaction, or `422` if it isn't `PendingApproval`.
 - Concurrent edits of the same reserve return `409 Conflict`.
-- No manual GL-posting retry endpoint is exposed: a failed posting is retried by the background job and surfaces as `postingStatus = Failed` (UI shows the badge only).
+- GL posting is retried automatically by the background job (10 attempts); only then does the transaction show `postingStatus = Failed`. `POST /api/claims/{id}/reserves/{txnId}/retry-posting` re-queues a `Failed` posting: it resets the status to `Pending`, audits `GL_POSTING_RETRIED` and enqueues the job again with the same idempotency key, so the entry can never be posted twice. Returns `200` with the transaction; `422` if the posting is not `Failed`; open to all roles (the reserve is already approved, the retry only re-runs the technical step).
 
 > **Resolved (docs/decisions.md ADR-002):** the FRS's single-`POST` design and the Assessment Brief's `PUT` requirement are both honored — `POST` opens a component, `PUT` adjusts one, and both write only `INSERT`s to `ReserveHistory` internally. See the table above.
 >

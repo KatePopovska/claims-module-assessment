@@ -18,7 +18,10 @@ public static class WebApplicationExtensions
 
         app.UseCors(DependencyInjection.FrontendCorsPolicy);
 
-        app.UseHttpsRedirection();
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseHttpsRedirection();
+        }
 
         if (app.Environment.IsDevelopment() && !app.Configuration.UsesAzureBlobStorage())
         {
