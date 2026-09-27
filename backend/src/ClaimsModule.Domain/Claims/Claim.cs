@@ -49,6 +49,7 @@ public class Claim : BaseAuditableEntity, ISoftDelete, IHasConcurrencyToken
         var claim = new Claim
         {
             ClaimNumber = claimNumber,
+            Policy = policy,
             PolicyId = policy?.Id,
             PolicyNumber = policy?.PolicyNumber,
             ClientName = policy?.ClientName,

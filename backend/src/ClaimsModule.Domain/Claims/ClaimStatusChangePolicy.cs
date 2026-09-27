@@ -129,10 +129,9 @@ public static class ClaimStatusChangePolicy
 
     private static IEnumerable<string> GetWarningsRequiringAcknowledgement(Claim claim)
     {
-        if (claim.Policy is not null && claim.LossEvent is not null
-            && (claim.LossEvent.LossDate < claim.Policy.EffectiveDate || claim.LossEvent.LossDate > claim.Policy.ExpirationDate))
+        if (ClaimIntakeRules.IsLossDateOutsidePolicyPeriod(claim))
         {
-            yield return "Loss date is outside the policy effective period.";
+            yield return ClaimIntakeRules.LossDateOutsidePolicyWarning;
         }
     }
 }
