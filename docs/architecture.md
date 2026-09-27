@@ -1,6 +1,6 @@
 # Architecture Requirements
 
-Source: Assessment §2.4, §3.8; FRS §15. This captures what the source documents *mandate* architecturally — it is a requirements extraction, not the actual design (that belongs in a future `ARCHITECTURE.md` deliverable per Assessment §4.4).
+Source: Assessment §2.4, §3.8; FRS §15. This captures what the source documents *mandate* architecturally — it is a requirements extraction, not the actual design, which is described in [`ARCHITECTURE.md`](../ARCHITECTURE.md) (Assessment §4.4).
 
 ## 1. Required Backend Layering (Assessment §2.4)
 
