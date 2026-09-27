@@ -19,7 +19,7 @@
         } @else {
           <mat-icon matSuffix>search</mat-icon>
         }
-        <mat-autocomplete #policyAuto [displayWith]="displayPolicy" (optionSelected)="onPolicySelected($event)">
+        <mat-autocomplete #policyAuto [displayWith]="displayPolicy">
           @for (policy of policyResults(); track policy.id) {
             <mat-option [value]="policy">
               <span class="option-main">{{ policy.policyNumber }}</span>

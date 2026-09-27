@@ -1,0 +1,71 @@
+<h2 mat-dialog-title>Change status to {{ targetLabel }}</h2>
+
+<mat-dialog-content>
+  <p class="transition">
+    <app-status-badge [status]="data.claim.status" />
+    <mat-icon>arrow_forward</mat-icon>
+    <app-status-badge [status]="data.targetStatus" />
+  </p>
+
+  @if (checklist.length > 0) {
+    <section class="checklist" aria-label="Closure pre-flight checklist">
+      <h3 class="app-overline">Pre-flight checklist</h3>
+      <ul>
+        @for (item of checklist; track item.label) {
+          <li [class]="item.state">
+            <mat-icon>{{ item.state === 'pass' ? 'check_circle' : item.state === 'warn' ? 'error_outline' : 'cancel' }}</mat-icon>
+            {{ item.label }}
+          </li>
+        }
+      </ul>
+      @if (checklistBlocks) {
+        <p class="blocked">Resolve the failed items before closing this claim.</p>
+      }
+    </section>
+  }
+
+  @if (data.targetStatus === 'Reopened') {
+    <p class="app-muted">The claim moves to Reopened and then automatically back to Open.</p>
+  }
+
+  <mat-form-field class="reason">
+    <mat-label>{{ reasonRequired ? 'Reason' : 'Reason (optional)' }}</mat-label>
+    <textarea matInput [formControl]="reason" rows="3"></textarea>
+    <mat-hint align="end">{{ reason.value.length }} / {{ reasonMaxLength }}</mat-hint>
+    @if (reason.hasError('required')) {
+      <mat-error>A reason is required for this transition.</mat-error>
+    } @else if (reason.hasError('maxlength')) {
+      <mat-error>Reason is limited to {{ reasonMaxLength }} characters.</mat-error>
+    }
+  </mat-form-field>
+
+  @if (needsAcknowledgement()) {
+    <section class="acknowledge">
+      <strong>Warnings</strong>
+      <ul>
+        @for (warning of warningsToAcknowledge(); track warning) {
+          <li>{{ warning }}</li>
+        }
+      </ul>
+      <mat-checkbox [formControl]="acknowledge">I acknowledge these warnings and want to open the claim</mat-checkbox>
+    </section>
+  }
+
+  @if (serverIssues().length > 0) {
+    <ul class="issues" role="alert">
+      @for (issue of serverIssues(); track issue) {
+        <li>{{ issue }}</li>
+      }
+    </ul>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="submitting()">Cancel</button>
+  <button mat-flat-button type="button" (click)="confirm()" [disabled]="submitting() || checklistBlocks || (needsAcknowledgement() && !acknowledge.value)">
+    @if (submitting()) {
+      <mat-spinner diameter="18" />
+    }
+    Change to {{ targetLabel }}
+  </button>
+</mat-dialog-actions>

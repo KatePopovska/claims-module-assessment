@@ -1,13 +1,13 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { merge } from 'rxjs';
+import { map, merge, startWith, switchMap } from 'rxjs';
 import { CauseOfLossCode, CreateClaimParty, RESERVE_COMPONENT_TYPES } from '../../../api/models';
 import { ReserveThreshold } from '../../../shared/reserve-threshold/reserve-threshold';
 import { FnolForm, intakeWarnings, selectedPolicy } from '../fnol-form';
@@ -29,11 +29,16 @@ import { FnolForm, intakeWarnings, selectedPolicy } from '../fnol-form';
   styleUrl: './review-step.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ReviewStep implements OnInit {
-  private readonly destroyRef = inject(DestroyRef);
-  private readonly version = signal(0);
-
+export class ReviewStep {
   readonly form = input.required<FnolForm>();
+
+  private readonly version = toSignal(
+    toObservable(this.form).pipe(
+      switchMap((form) => merge(form.policyLoss.valueChanges, form.parties.valueChanges, form.reserve.valueChanges).pipe(startWith(null))),
+      map((_, index) => index),
+    ),
+    { initialValue: 0 },
+  );
 
   protected readonly components = RESERVE_COMPONENT_TYPES;
 
@@ -61,13 +66,6 @@ export class ReviewStep implements OnInit {
     this.version();
     return this.form().reserve.controls.amount.value;
   });
-
-  ngOnInit(): void {
-    const form = this.form();
-    merge(form.policyLoss.valueChanges, form.parties.valueChanges, form.reserve.valueChanges)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.version.update((v) => v + 1));
-  }
 
   protected partyName(party: CreateClaimParty): string {
     return party.partyType === 'Company' ? (party.companyName ?? '') : `${party.firstName ?? ''} ${party.lastName ?? ''}`.trim();

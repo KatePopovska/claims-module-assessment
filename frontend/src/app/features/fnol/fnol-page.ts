@@ -68,6 +68,15 @@ export class FnolPage {
       }
     });
 
+    policyLoss.controls.unknownPolicy.valueChanges.pipe(takeUntilDestroyed(destroyRef)).subscribe((unknown) => {
+      if (unknown) {
+        policyLoss.controls.policy.reset(null);
+        policyLoss.controls.policy.disable();
+      } else {
+        policyLoss.controls.policy.enable();
+      }
+    });
+
     reserve.controls.component.valueChanges
       .pipe(takeUntilDestroyed(destroyRef))
       .subscribe(() => reserve.controls.amount.updateValueAndValidity());

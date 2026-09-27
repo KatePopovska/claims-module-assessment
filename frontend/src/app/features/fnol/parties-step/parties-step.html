@@ -7,13 +7,13 @@
       }
     </div>
 
-    @if (form().controls.parties.hasError('claimantRequired')) {
+    @if (claimantMissing()) {
       <p class="notice warning" role="alert"><mat-icon>warning_amber</mat-icon>At least one party with the role Claimant is required.</p>
     }
 
-    @if (parties.length > 0) {
+    @if (parties().length > 0) {
       <ul class="cards">
-        @for (party of parties; track $index; let i = $index) {
+        @for (party of parties(); track $index; let i = $index) {
           <li class="card">
             <span class="card-icon"><mat-icon>{{ party.partyType === 'Company' ? 'business' : 'person' }}</mat-icon></span>
             <span class="card-text">
@@ -72,7 +72,7 @@
           <mat-error>Phone is limited to 50 characters.</mat-error>
         </mat-form-field>
         <div class="inline-actions">
-          @if (parties.length > 0) {
+          @if (parties().length > 0) {
             <button mat-button type="button" (click)="addingParty.set(false)">Cancel</button>
           }
           <button mat-flat-button type="submit"><mat-icon>check</mat-icon>Add party</button>
@@ -89,13 +89,13 @@
       }
     </div>
 
-    @if (riskObjects.length === 0 && !addingRiskObject()) {
+    @if (riskObjects().length === 0 && !addingRiskObject()) {
       <p class="notice info"><mat-icon>info</mat-icon>At least one risk object is recommended. Describe the damaged asset so it can be assessed.</p>
     }
 
-    @if (riskObjects.length > 0) {
+    @if (riskObjects().length > 0) {
       <ul class="cards">
-        @for (riskObject of riskObjects; track $index; let i = $index) {
+        @for (riskObject of riskObjects(); track $index; let i = $index) {
           <li class="card">
             <span class="card-icon"><mat-icon>inventory_2</mat-icon></span>
             <span class="card-text">

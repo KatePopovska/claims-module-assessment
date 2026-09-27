@@ -1,19 +1,93 @@
 @if (created(); as newClaim) {
   <section class="success-banner" role="status">
     <mat-icon>check_circle</mat-icon>
-    <div class="text">
+    <div class="banner-text">
       <strong>Claim {{ newClaim.claimNumber }} was created</strong>
       <span>It is in Draft status and assigned to you.</span>
       @if (initialReserveNote(newClaim); as note) {
         <span>{{ note }}</span>
       }
       @for (warning of newClaim.initialReserve?.warnings ?? []; track warning) {
-        <span class="warning">{{ warning }}</span>
+        <span class="banner-warning">{{ warning }}</span>
       }
     </div>
     <button mat-icon-button type="button" (click)="created.set(null)" aria-label="Dismiss"><mat-icon>close</mat-icon></button>
   </section>
 }
 
-<app-page-header title="Claim detail" [breadcrumbs]="[{ label: 'Claims', link: '/claims' }, { label: created()?.claimNumber ?? id() }]" />
-<section class="app-card app-card-body app-muted">The claim detail screen is implemented in the next phase.</section>
+@if (claim(); as claim) {
+  <app-page-header [title]="'Claim ' + claim.claimNumber" [breadcrumbs]="breadcrumbs()">
+    <div headerMeta class="meta">
+      <button mat-icon-button type="button" class="copy" (click)="copyClaimNumber(claim.claimNumber)" matTooltip="Copy claim number" aria-label="Copy claim number">
+        <mat-icon>content_copy</mat-icon>
+      </button>
+      <span class="meta-item"><mat-icon>policy</mat-icon>Policy: <strong>{{ claim.policyNumber ?? 'Unknown' }}</strong>@if (claim.clientName) {<span class="app-muted"> · {{ claim.clientName }}</span>}</span>
+      <span class="meta-item">Status: <app-status-badge [status]="claim.status" /></span>
+      <span class="meta-item"><mat-icon>event</mat-icon>Loss: {{ claim.lossEvent ? (claim.lossEvent.lossDate | date: 'MMM d, y') : '—' }} · {{ claim.lossEvent?.causeOfLossName ?? claim.lossEvent?.causeOfLossCode ?? '—' }}</span>
+      <span class="meta-item"><mat-icon>person</mat-icon>Handler: {{ userName(claim.assignedHandlerId) }}</span>
+      <span class="meta-item"><mat-icon>calendar_today</mat-icon>Filed: {{ claim.reportedDate | date: 'MMM d, y' }}</span>
+    </div>
+
+    <div headerActions class="actions">
+      <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()"><mat-icon>refresh</mat-icon>Refresh</button>
+      <button mat-flat-button type="button" [matMenuTriggerFor]="statusMenu" [disabled]="claim.validNextStatuses.length === 0 || loading()">
+        <mat-icon>swap_horiz</mat-icon>
+        Change status
+      </button>
+      <mat-menu #statusMenu="matMenu" xPosition="before">
+        @for (option of statusOptions(); track option.status) {
+          <button mat-menu-item type="button" [disabled]="!option.allowed" [matTooltip]="option.tooltip" (click)="changeStatus(claim, option.status)">
+            {{ option.label }}
+          </button>
+        }
+      </mat-menu>
+    </div>
+  </app-page-header>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" class="refreshing" />
+  }
+
+  <mat-tab-group class="tabs" [selectedIndex]="selectedTab()" (selectedIndexChange)="selectedTab.set($event)" animationDuration="0ms" mat-stretch-tabs="false">
+    <mat-tab label="Overview">
+      <ng-template matTabContent>
+        <app-overview-tab [claim]="claim" (changed)="reload()" (viewAuditLog)="selectedTab.set(tabs.audit)" />
+      </ng-template>
+    </mat-tab>
+    <mat-tab label="Parties ({{ claim.parties.length }})">
+      <ng-template matTabContent>
+        <app-parties-tab [claim]="claim" (changed)="reload()" />
+      </ng-template>
+    </mat-tab>
+    <mat-tab label="Reserves">
+      <ng-template matTabContent>
+        <app-reserves-tab [claim]="claim" (changed)="reload()" />
+      </ng-template>
+    </mat-tab>
+    <mat-tab label="Documents ({{ claim.documents.length }})">
+      <ng-template matTabContent>
+        <app-documents-tab [claim]="claim" (changed)="reload()" />
+      </ng-template>
+    </mat-tab>
+    <mat-tab label="Audit Log">
+      <ng-template matTabContent>
+        <app-audit-log-tab [claimId]="claim.id" (openRelated)="selectedTab.set($event)" />
+      </ng-template>
+    </mat-tab>
+  </mat-tab-group>
+} @else if (loading()) {
+  <app-page-header title="Loading claim…" [breadcrumbs]="breadcrumbs()" />
+  <mat-progress-bar mode="indeterminate" />
+} @else {
+  <app-page-header title="Claim not available" [breadcrumbs]="breadcrumbs()" />
+  <section class="app-card state">
+    <mat-icon>{{ notFound() ? 'search_off' : 'cloud_off' }}</mat-icon>
+    <h3>{{ notFound() ? 'This claim does not exist.' : 'The claim could not be loaded.' }}</h3>
+    <div class="state-actions">
+      <a mat-stroked-button routerLink="/claims">Back to claims</a>
+      @if (!notFound()) {
+        <button mat-flat-button type="button" (click)="reload()">Retry</button>
+      }
+    </div>
+  </section>
+}

@@ -1,0 +1,123 @@
+<div class="toolbar">
+  <div>
+    @if (reserves(); as r) {
+      <span class="total">Total approved: <strong>{{ r.totalReserves | currency: 'USD' }}</strong></span>
+      @if (r.reserveLimitOverride) {
+        <span class="override"><mat-icon>verified</mat-icon>$10M limit override set</span>
+      }
+    }
+  </div>
+  <div class="toolbar-actions">
+    @if (auth.isManager() && reserves() && !reserves()!.reserveLimitOverride) {
+      <button mat-stroked-button type="button" (click)="setLimitOverride()"><mat-icon>shield</mat-icon>Set limit override</button>
+    }
+    <span [matTooltip]="hasPolicy() ? '' : 'No policy linked. Policy must be associated before reserves can be set.'">
+      <button mat-flat-button type="button" (click)="openPanel()" [disabled]="!canAddReserve()"><mat-icon>add</mat-icon>Add reserve</button>
+    </span>
+  </div>
+</div>
+
+@if (!hasPolicy()) {
+  <p class="notice"><mat-icon>lock</mat-icon>No policy linked. Policy must be associated before reserves can be set.</p>
+}
+
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (reserves(); as r) {
+  <div class="cards">
+    @for (card of componentCards(); track card.component.id) {
+      <section class="app-card card" [class.pending]="card.pending">
+        <div class="card-head">
+          <span class="app-overline">{{ card.label }}</span>
+          @if (card.component.status === 'Closed') {
+            <span class="closed">Closed</span>
+          }
+        </div>
+        <div class="balance">{{ card.component.currentBalance | currency: 'USD' }}</div>
+        <div class="card-foot">
+          @if (card.pending) {
+            <span class="pending-text"><mat-icon>hourglass_top</mat-icon>{{ card.component.pendingAmount | currency: 'USD' }} pending approval</span>
+          } @else {
+            <span class="app-muted">No pending changes</span>
+          }
+          <button mat-button type="button" (click)="openPanel(card.component)" [disabled]="!card.canAdjust">Adjust</button>
+        </div>
+      </section>
+    } @empty {
+      <section class="app-card empty">No reserves have been set on this claim yet.</section>
+    }
+  </div>
+
+  <section class="app-card history">
+    <div class="app-card-header"><h2>Transaction history</h2></div>
+    @if (transactionRows().length > 0) {
+      <table mat-table [dataSource]="transactionRows()">
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef>Date</th>
+          <td mat-cell *matCellDef="let row">{{ row.transaction.createdAt | date: 'MMM d, y, HH:mm' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="transactionType">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let row">{{ row.transaction.transactionType }}</td>
+        </ng-container>
+        <ng-container matColumnDef="component">
+          <th mat-header-cell *matHeaderCellDef>Component</th>
+          <td mat-cell *matCellDef="let row">{{ row.componentLabel }}</td>
+        </ng-container>
+        <ng-container matColumnDef="amount">
+          <th mat-header-cell *matHeaderCellDef class="numeric">Amount</th>
+          <td mat-cell *matCellDef="let row" class="numeric" [class.increase]="row.transaction.amount > 0" [class.decrease]="row.transaction.amount < 0">
+            {{ row.transaction.amount > 0 ? '+' : '' }}{{ row.transaction.amount | currency: 'USD' }}
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="approvalStatus">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="pill" [class]="'pill approval-' + row.transaction.approvalStatus" [matTooltip]="row.transaction.rejectionReason ?? ''">{{ row.approvalLabel }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="postingStatus">
+          <th mat-header-cell *matHeaderCellDef>GL posting</th>
+          <td mat-cell *matCellDef="let row">
+            @if (row.showPosting) {
+              <span class="pill" [class]="'pill posting-' + row.transaction.postingStatus">{{ row.transaction.postingStatus }}</span>
+            } @else {
+              <span class="app-muted">—</span>
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="submittedBy">
+          <th mat-header-cell *matHeaderCellDef>Submitted by</th>
+          <td mat-cell *matCellDef="let row">{{ row.submittedBy }}</td>
+        </ng-container>
+        <ng-container matColumnDef="approvedBy">
+          <th mat-header-cell *matHeaderCellDef>Approved by</th>
+          <td mat-cell *matCellDef="let row">{{ row.decidedBy }}</td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row" class="row-actions">
+            @if (row.showDecision) {
+              <span [matTooltip]="row.approveBlockedReason ?? ''">
+                <button mat-flat-button type="button" (click)="approve(row.transaction)" [disabled]="!!row.approveBlockedReason || busyTransactionId() === row.transaction.id">Approve</button>
+              </span>
+              <span [matTooltip]="row.rejectBlockedReason ?? ''">
+                <button mat-stroked-button type="button" class="reject" (click)="reject(row.transaction)" [disabled]="!!row.rejectBlockedReason || busyTransactionId() === row.transaction.id">Reject</button>
+              </span>
+            }
+            @if (row.canRetract) {
+              <button mat-button type="button" (click)="retract(row.transaction)" [disabled]="busyTransactionId() === row.transaction.id">Retract</button>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      </table>
+    } @else {
+      <p class="app-muted app-card-body">No reserve transactions yet.</p>
+    }
+  </section>
+}

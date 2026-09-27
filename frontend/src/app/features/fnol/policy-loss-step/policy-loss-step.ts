@@ -1,8 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
-import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,11 +10,14 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTimepickerModule } from '@angular/material/timepicker';
-import { catchError, debounceTime, distinctUntilChanged, filter, map, of, startWith, switchMap, tap } from 'rxjs';
-import { CauseOfLossCode, PolicyCoverage, PolicySearchResult } from '../../../api/models';
+import { catchError, debounceTime, distinctUntilChanged, filter, finalize, map, of, startWith, switchMap } from 'rxjs';
+import { CauseOfLossCode, PolicySearchResult } from '../../../api/models';
 import { PoliciesApi } from '../../../api/policies-api.service';
 import { ReferenceApi } from '../../../api/reference-api.service';
-import { LOSS_DESCRIPTION_MIN_LENGTH, policyCoverState, PolicyLossForm, selectedPolicy } from '../fnol-form';
+import { controlValue } from '../../../shared/forms/control-value';
+import { LOSS_DESCRIPTION_MIN_LENGTH, policyCoverState, PolicyLossForm } from '../fnol-form';
+
+const POLICY_SEARCH_MIN_LENGTH = 2;
 
 @Component({
   selector: 'app-policy-loss-step',
@@ -34,26 +37,32 @@ import { LOSS_DESCRIPTION_MIN_LENGTH, policyCoverState, PolicyLossForm, selected
   styleUrl: './policy-loss-step.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PolicyLossStep implements OnInit {
+export class PolicyLossStep {
   private readonly policiesApi = inject(PoliciesApi);
-  private readonly destroyRef = inject(DestroyRef);
 
   readonly form = input.required<PolicyLossForm>();
 
   protected readonly minDescriptionLength = LOSS_DESCRIPTION_MIN_LENGTH;
   protected readonly maxLossDate = new Date();
   protected readonly searching = signal(false);
-  protected readonly policyResults = signal<PolicySearchResult[]>([]);
-  protected readonly coverage = signal<PolicyCoverage | null>(null);
-  protected readonly selected = signal<PolicySearchResult | null>(null);
-  protected readonly lossDate = signal<Date | null>(null);
-  protected readonly descriptionLength = signal(0);
-  protected readonly causeFilter = signal('');
 
+  private readonly policyValue = controlValue(this.form, (f) => f.controls.policy, null);
+  private readonly unknownPolicy = controlValue(this.form, (f) => f.controls.unknownPolicy, false);
+  private readonly causeValue = controlValue(this.form, (f) => f.controls.causeOfLoss, null);
+  private readonly description = controlValue(this.form, (f) => f.controls.lossDescription, '');
+  private readonly lossDate = controlValue(this.form, (f) => f.controls.lossDate, null);
   private readonly causeOfLossCodes = toSignal(inject(ReferenceApi).causeOfLossCodes$.pipe(catchError(() => of([]))), { initialValue: [] });
 
+  protected readonly selected = computed(() => {
+    const value = this.policyValue();
+    return !this.unknownPolicy() && value !== null && typeof value === 'object' ? value : null;
+  });
+
+  protected readonly descriptionLength = computed(() => this.description().trim().length);
+
   protected readonly filteredCauses = computed(() => {
-    const term = this.causeFilter().toLowerCase();
+    const value = this.causeValue();
+    const term = typeof value === 'string' ? value.toLowerCase() : '';
     return this.causeOfLossCodes().filter((c) => c.name.toLowerCase().includes(term) || c.code.toLowerCase().includes(term));
   });
 
@@ -62,58 +71,39 @@ export class PolicyLossStep implements OnInit {
     return policy ? policyCoverState(policy, this.lossDate()) : null;
   });
 
-  ngOnInit(): void {
-    const controls = this.form().controls;
+  protected readonly policyResults = toSignal(
+    toObservable(this.policyValue).pipe(
+      map((value) => (typeof value === 'string' ? value.trim() : null)),
+      filter((term): term is string => term !== null),
+      debounceTime(250),
+      distinctUntilChanged(),
+      switchMap((term) => {
+        if (term.length < POLICY_SEARCH_MIN_LENGTH) {
+          return of([]);
+        }
+        this.searching.set(true);
+        return this.policiesApi.search(term).pipe(
+          catchError(() => of([])),
+          finalize(() => this.searching.set(false)),
+        );
+      }),
+    ),
+    { initialValue: [] },
+  );
 
-    controls.policy.valueChanges
-      .pipe(
-        startWith(controls.policy.value),
-        tap(() => this.selected.set(selectedPolicy(this.form()))),
-        map((value) => (typeof value === 'string' ? value.trim() : null)),
-        filter((term): term is string => term !== null),
-        debounceTime(250),
-        distinctUntilChanged(),
-        tap(() => this.coverage.set(null)),
-        switchMap((term) => {
-          if (term.length < 2) {
-            return of([]);
-          }
-          this.searching.set(true);
-          return this.policiesApi.search(term).pipe(catchError(() => of([])));
-        }),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((results) => {
-        this.policyResults.set(results);
-        this.searching.set(false);
-      });
-
-    controls.lossDate.valueChanges.pipe(startWith(controls.lossDate.value), takeUntilDestroyed(this.destroyRef)).subscribe((date) => this.lossDate.set(date));
-
-    controls.lossDescription.valueChanges
-      .pipe(startWith(controls.lossDescription.value), takeUntilDestroyed(this.destroyRef))
-      .subscribe((text) => this.descriptionLength.set(text.trim().length));
-
-    controls.causeOfLoss.valueChanges
-      .pipe(startWith(controls.causeOfLoss.value), takeUntilDestroyed(this.destroyRef))
-      .subscribe((value) => this.causeFilter.set(typeof value === 'string' ? value : ''));
-
-    controls.unknownPolicy.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((unknown) => {
-      if (unknown) {
-        controls.policy.reset(null);
-        controls.policy.disable();
-        this.coverage.set(null);
-        this.selected.set(null);
-      } else {
-        controls.policy.enable();
-      }
-    });
-
-    const current = selectedPolicy(this.form());
-    if (current) {
-      this.loadCoverage(current);
-    }
-  }
+  protected readonly coverage = toSignal(
+    toObservable(this.selected).pipe(
+      switchMap((policy) =>
+        policy
+          ? this.policiesApi.coverage(policy.id).pipe(
+              catchError(() => of(null)),
+              startWith(null),
+            )
+          : of(null),
+      ),
+    ),
+    { initialValue: null },
+  );
 
   protected displayPolicy(policy: PolicySearchResult | string | null): string {
     return policy && typeof policy === 'object' ? `${policy.policyNumber} · ${policy.clientName}` : (policy ?? '');
@@ -121,17 +111,5 @@ export class PolicyLossStep implements OnInit {
 
   protected displayCause(cause: CauseOfLossCode | string | null): string {
     return cause && typeof cause === 'object' ? cause.name : (cause ?? '');
-  }
-
-  protected onPolicySelected(event: MatAutocompleteSelectedEvent): void {
-    this.loadCoverage(event.option.value as PolicySearchResult);
-  }
-
-  private loadCoverage(policy: PolicySearchResult): void {
-    this.coverage.set(null);
-    this.policiesApi
-      .coverage(policy.id)
-      .pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
-      .subscribe((coverage) => this.coverage.set(coverage));
   }
 }

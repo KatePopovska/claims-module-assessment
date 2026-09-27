@@ -1,0 +1,173 @@
+:host {
+  display: block;
+  padding-top: 24px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.total {
+  font-size: 16px;
+}
+
+.override {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 16px;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--app-radius-sm);
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.card {
+  padding: 16px 16px 8px;
+
+  &.pending {
+    border-color: #fcd34d;
+    background: #fffbeb;
+  }
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+}
+
+.closed {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.balance {
+  margin: 8px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--app-navy);
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.pending-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #b45309;
+  font-weight: 600;
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}
+
+.empty {
+  grid-column: 1 / -1;
+  padding: 24px;
+  color: var(--app-text-muted);
+}
+
+.history {
+  overflow: hidden;
+
+  table {
+    width: 100%;
+  }
+}
+
+.mat-mdc-header-cell {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.numeric {
+  text-align: right;
+}
+
+.increase {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.decrease {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.approval-AutoApproved,
+.approval-Approved,
+.posting-Posted {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.approval-PendingApproval {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.approval-Rejected,
+.posting-Failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.posting-Pending {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.row-actions {
+  white-space: nowrap;
+
+  button {
+    margin-left: 4px;
+  }
+}
+
+.reject {
+  --mat-button-outlined-label-text-color: #b91c1c;
+}

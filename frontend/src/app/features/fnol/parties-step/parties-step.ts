@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { startWith } from 'rxjs';
 import { ASSET_TYPES, AssetType, CreateClaimParty, CreateClaimRiskObject, PARTY_ROLES, PartyRole, PartyType } from '../../../api/models';
+import { controlValue } from '../../../shared/forms/control-value';
 import { PartiesForm } from '../fnol-form';
 
 @Component({
@@ -18,10 +19,12 @@ import { PartiesForm } from '../fnol-form';
   styleUrl: './parties-step.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PartiesStep implements OnInit {
-  private readonly destroyRef = inject(DestroyRef);
-
+export class PartiesStep {
   readonly form = input.required<PartiesForm>();
+
+  protected readonly parties = controlValue(this.form, (f) => f.controls.parties, []);
+  protected readonly riskObjects = controlValue(this.form, (f) => f.controls.riskObjects, []);
+  protected readonly claimantMissing = computed(() => !this.parties().some((p) => p.partyRole === 'Claimant'));
 
   protected readonly partyRoles = PARTY_ROLES;
   protected readonly assetTypes = ASSET_TYPES;
@@ -46,10 +49,10 @@ export class PartiesStep implements OnInit {
     isPrimary: new FormControl(false, { nonNullable: true }),
   });
 
-  ngOnInit(): void {
+  constructor() {
     const { partyType, firstName, lastName, companyName } = this.partyDraft.controls;
 
-    partyType.valueChanges.pipe(startWith(partyType.value), takeUntilDestroyed(this.destroyRef)).subscribe((type) => {
+    partyType.valueChanges.pipe(startWith(partyType.value), takeUntilDestroyed()).subscribe((type) => {
       const person = type === 'Person';
       for (const control of [firstName, lastName]) {
         control.setValidators(person ? [Validators.required, Validators.maxLength(255)] : [Validators.maxLength(255)]);
@@ -58,14 +61,6 @@ export class PartiesStep implements OnInit {
       companyName.setValidators(person ? [Validators.maxLength(255)] : [Validators.required, Validators.maxLength(255)]);
       companyName.updateValueAndValidity({ emitEvent: false });
     });
-  }
-
-  protected get parties(): CreateClaimParty[] {
-    return this.form().controls.parties.getRawValue();
-  }
-
-  protected get riskObjects(): CreateClaimRiskObject[] {
-    return this.form().controls.riskObjects.getRawValue();
   }
 
   protected addParty(): void {
