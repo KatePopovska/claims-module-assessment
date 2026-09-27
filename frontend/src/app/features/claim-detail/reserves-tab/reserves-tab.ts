@@ -64,11 +64,14 @@ export class ReservesTab implements OnInit {
       const ownSubmission = transaction.submittedByUserId.toLowerCase() === userId;
       const authorityBlock = supervisor && Math.abs(transaction.amount) > SUPERVISOR_APPROVAL_LIMIT ? 'Requires Manager approval (over $100,000).' : null;
 
+      const showPosting = transaction.approvalStatus === 'AutoApproved' || transaction.approvalStatus === 'Approved';
+
       return {
         transaction,
         componentLabel: componentLabel(transaction.component),
         approvalLabel: APPROVAL_LABELS[transaction.approvalStatus],
-        showPosting: transaction.approvalStatus === 'AutoApproved' || transaction.approvalStatus === 'Approved',
+        showPosting,
+        canRetryPosting: showPosting && transaction.postingStatus === 'Failed',
         submittedBy: userDisplayName(transaction.submittedByUserId),
         decidedBy: transaction.approvedByUserId
           ? userDisplayName(transaction.approvedByUserId)
@@ -135,6 +138,10 @@ export class ReservesTab implements OnInit {
 
   protected approve(transaction: ReserveTransaction): void {
     this.runAction(transaction, this.reservesApi.approve(this.claim().id, transaction.id), 'Reserve approved and queued for GL posting.');
+  }
+
+  protected retryPosting(transaction: ReserveTransaction): void {
+    this.runAction(transaction, this.reservesApi.retryPosting(this.claim().id, transaction.id), 'GL posting re-queued.');
   }
 
   protected retract(transaction: ReserveTransaction): void {
