@@ -7,6 +7,9 @@
       @if (initialReserveNote(newClaim); as note) {
         <span>{{ note }}</span>
       }
+      @for (warning of newClaim.warnings; track warning) {
+        <span class="banner-warning">Warning recorded: {{ warning }}</span>
+      }
       @for (warning of newClaim.initialReserve?.warnings ?? []; track warning) {
         <span class="banner-warning">{{ warning }}</span>
       }

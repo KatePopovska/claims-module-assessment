@@ -128,6 +128,7 @@ export interface ClaimCreated {
   claimNumber: string;
   status: ClaimStatus;
   reportedDate: string;
+  warnings: string[];
   initialReserve: ReserveSubmissionResult | null;
 }
 
