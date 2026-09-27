@@ -37,6 +37,10 @@ export class ReservesApi {
     return this.http.post<ReserveTransaction>(this.url(claimId, `reserves/${transactionId}/retract`), {});
   }
 
+  retryPosting(claimId: string, transactionId: string): Observable<ReserveTransaction> {
+    return this.http.post<ReserveTransaction>(this.url(claimId, `reserves/${transactionId}/retry-posting`), {});
+  }
+
   setLimitOverride(claimId: string, reason: string): Observable<void> {
     return this.http.put<void>(this.url(claimId, 'reserve-limit-override'), { reason });
   }
