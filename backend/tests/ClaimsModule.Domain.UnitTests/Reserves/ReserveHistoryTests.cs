@@ -1,4 +1,5 @@
 using ClaimsModule.Domain.Enums;
+using ClaimsModule.Domain.Reserves;
 using static ClaimsModule.Domain.UnitTests.TestData;
 
 namespace ClaimsModule.Domain.UnitTests.Reserves;
@@ -73,5 +74,43 @@ public class ReserveHistoryTests
         transaction.MarkPostingFailed();
 
         Assert.Equal(ReservePostingStatus.Failed, transaction.PostingStatus);
+    }
+
+    [Fact]
+    public void ResetPostingForRetry_FromFailed_ReturnsToPendingAndClearsJobId()
+    {
+        var transaction = ApprovedReserve(Claim(), ReserveComponentType.Indemnity, 5000).History.Single();
+        transaction.PostingJobId = "42";
+        transaction.MarkPostingFailed();
+
+        transaction.ResetPostingForRetry();
+
+        Assert.Equal(ReservePostingStatus.Pending, transaction.PostingStatus);
+        Assert.Null(transaction.PostingJobId);
+    }
+
+    [Theory]
+    [InlineData(ReservePostingStatus.Pending)]
+    [InlineData(ReservePostingStatus.Posted)]
+    [InlineData(ReservePostingStatus.Cancelled)]
+    public void ResetPostingForRetry_WhenNotFailed_Throws(ReservePostingStatus status)
+    {
+        var transaction = ApprovedReserve(Claim(), ReserveComponentType.Indemnity, 5000).History.Single();
+        transaction.PostingStatus = status;
+
+        Assert.Throws<InvalidOperationException>(transaction.ResetPostingForRetry);
+        Assert.Equal(status, transaction.PostingStatus);
+    }
+
+    [Theory]
+    [InlineData(ReservePostingStatus.Failed, true)]
+    [InlineData(ReservePostingStatus.Pending, false)]
+    [InlineData(ReservePostingStatus.Posted, false)]
+    public void CheckPostingRetry_AllowsOnlyFailedPostings(ReservePostingStatus status, bool allowed)
+    {
+        var transaction = ApprovedReserve(Claim(), ReserveComponentType.Indemnity, 5000).History.Single();
+        transaction.PostingStatus = status;
+
+        Assert.Equal(allowed, ReserveRules.CheckPostingRetry(transaction).Count == 0);
     }
 }

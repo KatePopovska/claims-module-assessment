@@ -3,6 +3,7 @@ using ClaimsModule.Application.Reserves.Commands.ApproveReserve;
 using ClaimsModule.Application.Reserves.Commands.CreateReserve;
 using ClaimsModule.Application.Reserves.Commands.RejectReserve;
 using ClaimsModule.Application.Reserves.Commands.RetractReserve;
+using ClaimsModule.Application.Reserves.Commands.RetryGlPosting;
 using ClaimsModule.Application.Reserves.Commands.SetReserveLimitOverride;
 using ClaimsModule.Application.Reserves.Queries.GetClaimReserves;
 using ClaimsModule.Domain.Enums;
@@ -58,6 +59,13 @@ public class ReservesController(ISender sender) : ControllerBase
     public async Task<IActionResult> Retract(Guid id, Guid txnId, CancellationToken cancellationToken)
     {
         var result = await sender.Send(new RetractReserveCommand(id, txnId), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("reserves/{txnId:guid}/retry-posting")]
+    public async Task<IActionResult> RetryPosting(Guid id, Guid txnId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new RetryGlPostingCommand(id, txnId), cancellationToken);
         return Ok(result);
     }
 

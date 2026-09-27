@@ -6,6 +6,7 @@ using ClaimsModule.Application.Reserves.Commands.ApproveReserve;
 using ClaimsModule.Application.Reserves.Commands.CreateReserve;
 using ClaimsModule.Application.Reserves.Commands.RejectReserve;
 using ClaimsModule.Application.Reserves.Commands.RetractReserve;
+using ClaimsModule.Application.Reserves.Commands.RetryGlPosting;
 using ClaimsModule.Application.Reserves.Commands.SetReserveLimitOverride;
 using ClaimsModule.Domain.Claims;
 using ClaimsModule.Domain.Enums;
@@ -220,6 +221,49 @@ public class ReserveCommandHandlerTests
         await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new RetractReserveCommand(claim.Id, pending.Id), CancellationToken.None));
 
         Assert.Equal(ReserveApprovalStatus.PendingApproval, pending.ApprovalStatus);
+    }
+
+    [Fact]
+    public async Task RetryGlPosting_FailedPosting_ResetsAuditsAndReenqueuesAfterSave()
+    {
+        var claim = Claim();
+        var transaction = ApprovedTransaction(claim, 5000);
+        transaction.MarkPostingFailed();
+        var handler = new RetryGlPostingCommandHandler(RepositoryReturning(claim), _unitOfWork, _audit, _scheduler);
+
+        var result = await handler.Handle(new RetryGlPostingCommand(claim.Id, transaction.Id), CancellationToken.None);
+
+        Assert.Equal(ReservePostingStatus.Pending, result.PostingStatus);
+        _audit.Received(1).Log(claim, AuditEventType.GL_POSTING_RETRIED, Arg.Any<string>(), "Failed", "Pending", transaction.Id, nameof(ReserveHistory));
+        Received.InOrder(() =>
+        {
+            _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
+            _scheduler.Enqueue(transaction);
+        });
+    }
+
+    [Fact]
+    public async Task RetryGlPosting_PostingNotFailed_IsRejectedWithoutSavingOrEnqueueing()
+    {
+        var claim = Claim();
+        var transaction = ApprovedTransaction(claim, 5000);
+        var handler = new RetryGlPostingCommandHandler(RepositoryReturning(claim), _unitOfWork, _audit, _scheduler);
+
+        var exception = await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new RetryGlPostingCommand(claim.Id, transaction.Id), CancellationToken.None));
+
+        Assert.Contains(exception.Errors, e => e.PropertyName == "PostingStatus");
+        Assert.Equal(ReservePostingStatus.Pending, transaction.PostingStatus);
+        await _unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+        _scheduler.DidNotReceiveWithAnyArgs().Enqueue(default!);
+    }
+
+    [Fact]
+    public async Task RetryGlPosting_UnknownTransaction_ThrowsNotFound()
+    {
+        var claim = Claim();
+        var handler = new RetryGlPostingCommandHandler(RepositoryReturning(claim), _unitOfWork, _audit, _scheduler);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new RetryGlPostingCommand(claim.Id, Guid.NewGuid()), CancellationToken.None));
     }
 
     [Fact]
