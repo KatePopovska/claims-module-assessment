@@ -7,6 +7,7 @@ import {
   intakeWarnings,
   notInFuture,
   policyCoverState,
+  syncLossDateAndTime,
   toCreateClaimRequest,
 } from './fnol-form';
 
@@ -74,6 +75,51 @@ describe('FNOL validators', () => {
     reserve.controls.component.setValue('SubrogationRecoverable');
     reserve.controls.amount.updateValueAndValidity();
     expect(reserve.controls.amount.hasError('amountRule')).toBe(false);
+  });
+});
+
+describe('loss date and time', () => {
+  function syncedForm() {
+    const form = createFnolForm();
+    syncLossDateAndTime(form.policyLoss);
+    return form.policyLoss.controls;
+  }
+
+  it('keeps the picked date when a time is chosen afterwards', () => {
+    const { lossDate, lossTime } = syncedForm();
+
+    lossDate.setValue(new Date(2025, 5, 15));
+    lossTime.setValue(new Date(2030, 0, 1, 14, 45));
+
+    expect(lossDate.value).toEqual(new Date(2025, 5, 15, 14, 45));
+  });
+
+  it('keeps the chosen time when the date is picked afterwards', () => {
+    const { lossDate, lossTime } = syncedForm();
+
+    lossTime.setValue(new Date(2030, 0, 1, 9, 30));
+    lossDate.setValue(new Date(2025, 5, 15));
+
+    expect(lossDate.value).toEqual(new Date(2025, 5, 15, 9, 30));
+  });
+
+  it('uses midnight when no time is entered', () => {
+    const { lossDate } = syncedForm();
+
+    lossDate.setValue(new Date(2025, 5, 15, 17, 5));
+
+    expect(lossDate.value).toEqual(new Date(2025, 5, 15));
+  });
+
+  it('still rejects a combined date and time in the future', () => {
+    const { lossDate, lossTime } = syncedForm();
+    const inOneHour = new Date(Date.now() + 60 * 60 * 1000);
+    const today = new Date(inOneHour.getFullYear(), inOneHour.getMonth(), inOneHour.getDate());
+
+    lossDate.setValue(today);
+    lossTime.setValue(inOneHour);
+
+    expect(lossDate.hasError('future')).toBe(true);
   });
 });
 

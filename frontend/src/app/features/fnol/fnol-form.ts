@@ -1,4 +1,5 @@
 import { AbstractControl, FormArray, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import { merge, Subscription } from 'rxjs';
 import {
   CauseOfLossCode,
   CreateClaimParty,
@@ -14,6 +15,7 @@ export type PolicyLossForm = FormGroup<{
   unknownPolicy: FormControl<boolean>;
   policy: FormControl<PolicySearchResult | string | null>;
   lossDate: FormControl<Date | null>;
+  lossTime: FormControl<Date | null>;
   causeOfLoss: FormControl<CauseOfLossCode | string | null>;
   lossDescription: FormControl<string>;
   lossLocation: FormControl<string>;
@@ -67,6 +69,7 @@ export function createFnolForm(): FnolForm {
       unknownPolicy: new FormControl(false, { nonNullable: true }),
       policy: new FormControl<PolicySearchResult | string | null>(null, [Validators.required, selectedOption]),
       lossDate: new FormControl<Date | null>(null, [Validators.required, notInFuture]),
+      lossTime: new FormControl<Date | null>(null),
       causeOfLoss: new FormControl<CauseOfLossCode | string | null>(null, [Validators.required, selectedOption]),
       lossDescription: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(LOSS_DESCRIPTION_MIN_LENGTH)] }),
       lossLocation: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(500)] }),
@@ -83,6 +86,28 @@ export function createFnolForm(): FnolForm {
       changeReason: new FormControl({ value: '', disabled: true }, { nonNullable: true, validators: [Validators.maxLength(1000)] }),
     }),
   };
+}
+
+export function withTime(date: Date, time: Date | null): Date {
+  const combined = new Date(date);
+  combined.setHours(time?.getHours() ?? 0, time?.getMinutes() ?? 0, 0, 0);
+  return combined;
+}
+
+export function syncLossDateAndTime(form: PolicyLossForm): Subscription {
+  const { lossDate, lossTime } = form.controls;
+
+  return merge(lossDate.valueChanges, lossTime.valueChanges).subscribe(() => {
+    const date = lossDate.value;
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    const combined = withTime(date, lossTime.value);
+    if (combined.getTime() !== date.getTime()) {
+      lossDate.setValue(combined);
+    }
+  });
 }
 
 export function selectedPolicy(form: PolicyLossForm): PolicySearchResult | null {

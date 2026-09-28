@@ -92,12 +92,10 @@
 
       <mat-form-field>
         <mat-label>Loss time</mat-label>
-        <input matInput formControlName="lossDate" [matTimepicker]="timePicker" />
+        <input matInput formControlName="lossTime" [matTimepicker]="timePicker" />
         <mat-timepicker-toggle matIconSuffix [for]="timePicker" />
         <mat-timepicker #timePicker />
-        @if (form().controls.lossDate.hasError('future')) {
-          <mat-error>Loss date cannot be in the future.</mat-error>
-        }
+        <mat-hint>Optional; applied to the loss date</mat-hint>
       </mat-form-field>
 
       <mat-form-field>
