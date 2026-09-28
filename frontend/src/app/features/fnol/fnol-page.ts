@@ -15,7 +15,7 @@ import { newIdempotencyKey } from '../../core/http/idempotency';
 import { NotificationService } from '../../core/notifications/notification.service';
 import { ConfirmDialog, ConfirmDialogData } from '../../shared/confirm-dialog/confirm-dialog';
 import { PageHeader } from '../../shared/page-header/page-header';
-import { createFnolForm, errorsByStep, intakeWarnings, selectedPolicy, toCreateClaimRequest } from './fnol-form';
+import { createFnolForm, errorsByStep, intakeWarnings, selectedPolicy, syncLossDateAndTime, toCreateClaimRequest } from './fnol-form';
 import { PartiesStep } from './parties-step/parties-step';
 import { PolicyLossStep } from './policy-loss-step/policy-loss-step';
 import { ReviewStep } from './review-step/review-step';
@@ -52,6 +52,9 @@ export class FnolPage {
   constructor() {
     const destroyRef = inject(DestroyRef);
     const { policyLoss, parties, reserve } = this.form;
+
+    const lossDateTimeSync = syncLossDateAndTime(policyLoss);
+    destroyRef.onDestroy(() => lossDateTimeSync.unsubscribe());
 
     merge(policyLoss.statusChanges, parties.statusChanges, reserve.statusChanges)
       .pipe(takeUntilDestroyed(destroyRef))
